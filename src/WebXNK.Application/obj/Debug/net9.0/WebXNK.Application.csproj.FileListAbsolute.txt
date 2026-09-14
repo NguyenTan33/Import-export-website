@@ -1,0 +1,15 @@
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.deps.json
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.pdb
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.pdb
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.AssemblyReference.cache
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.GeneratedMSBuildEditorConfig.editorconfig
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfoInputs.cache
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfo.cs
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.CoreCompileInputs.cache
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.A.66C47FA0.Up2Date
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\refint\WebXNK.Application.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.pdb
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\ref\WebXNK.Application.dll

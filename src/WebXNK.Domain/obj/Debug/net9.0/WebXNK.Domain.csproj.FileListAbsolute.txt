@@ -1,0 +1,11 @@
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.deps.json
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.pdb
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.GeneratedMSBuildEditorConfig.editorconfig
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.AssemblyInfoInputs.cache
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.AssemblyInfo.cs
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.csproj.CoreCompileInputs.cache
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\refint\WebXNK.Domain.dll
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.pdb
+F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\ref\WebXNK.Domain.dll
