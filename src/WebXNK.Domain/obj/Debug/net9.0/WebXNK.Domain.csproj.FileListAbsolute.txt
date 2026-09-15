@@ -9,3 +9,15 @@ F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXN
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\refint\WebXNK.Domain.dll
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.pdb
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Domain\obj\Debug\net9.0\ref\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.deps.json
+D:\intern\Import-export-website\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Domain\bin\Debug\net9.0\WebXNK.Domain.pdb
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.AssemblyInfoInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.AssemblyInfo.cs
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.csproj.CoreCompileInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.sourcelink.json
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\refint\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\WebXNK.Domain.pdb
+D:\intern\Import-export-website\src\WebXNK.Domain\obj\Debug\net9.0\ref\WebXNK.Domain.dll

@@ -29,6 +29,15 @@ public static class DependencyInjection
         services.AddSingleton<WebXNK.Application.Common.Interfaces.IPasswordHasher, Services.Identity.PasswordHasher>();
         services.AddScoped<WebXNK.Application.Common.Interfaces.IJwtTokenGenerator, Services.Identity.JwtTokenGenerator>();
 
+        // Tích hợp AWS S3 và Storage Service (EXP-59)
+        services.AddSingleton<WebXNK.Application.Common.Interfaces.IStorageService, Services.Storage.AwsS3StorageService>();
+
+        // Tích hợp QuestPDF Document Service tự sinh Proforma Invoice, Commercial Invoice, Packing List (EXP-56, EXP-69)
+        services.AddScoped<WebXNK.Application.Interfaces.IExportDocumentService, Services.Documents.QuestPdfExportDocumentService>();
+
+        // Background worker tự động giải phóng hàng giữ chỗ quá hạn 30 phút (EXP-79)
+        services.AddHostedService<Services.BackgroundJobs.ExpiredReservationCleanupWorker>();
+
         return services;
     }
 }

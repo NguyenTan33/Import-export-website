@@ -17,3 +17,42 @@ F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Infrastructure\obj\Debug\net9
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.pdb
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.genruntimeconfig.cache
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Infrastructure\obj\Debug\net9.0\ref\WebXNK.Infrastructure.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Infrastructure.deps.json
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Infrastructure.runtimeconfig.json
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Infrastructure.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Infrastructure.pdb
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Application.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Domain.pdb
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\WebXNK.Application.pdb
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.csproj.AssemblyReference.cache
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.AssemblyInfoInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.AssemblyInfo.cs
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.csproj.CoreCompileInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.sourcelink.json
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.I.F2FB2D2F.Up2Date
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\refint\WebXNK.Infrastructure.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.pdb
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\WebXNK.Infrastructure.genruntimeconfig.cache
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\obj\Debug\net9.0\ref\WebXNK.Infrastructure.dll
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Black.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-BlackItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Bold.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-BoldItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-ExtraBold.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-ExtraBoldItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-ExtraLight.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-ExtraLightItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Italic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Light.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-LightItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Medium.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-MediumItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Regular.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-SemiBold.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-SemiBoldItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-Thin.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\Lato-ThinItalic.ttf
+D:\intern\Import-export-website\src\WebXNK.Infrastructure\bin\Debug\net9.0\LatoFont\OFL.txt

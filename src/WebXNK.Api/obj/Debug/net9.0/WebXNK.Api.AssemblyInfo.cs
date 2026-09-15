@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebXNK.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f0a5fe743332b8b867c3d1d31f54b1a156802bb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7df2e592b65e73e93c9c341d44c33a7acb6e5d99")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebXNK.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebXNK.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

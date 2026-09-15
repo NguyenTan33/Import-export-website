@@ -13,3 +13,19 @@ F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\refint\WebXNK.Application.dll
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.pdb
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\ref\WebXNK.Application.dll
+D:\intern\Import-export-website\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.deps.json
+D:\intern\Import-export-website\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.dll
+D:\intern\Import-export-website\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.pdb
+D:\intern\Import-export-website\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.dll
+D:\intern\Import-export-website\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.pdb
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.AssemblyReference.cache
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfoInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfo.cs
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.CoreCompileInputs.cache
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.sourcelink.json
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.A.66C47FA0.Up2Date
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.dll
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\refint\WebXNK.Application.dll
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.pdb
+D:\intern\Import-export-website\src\WebXNK.Application\obj\Debug\net9.0\ref\WebXNK.Application.dll

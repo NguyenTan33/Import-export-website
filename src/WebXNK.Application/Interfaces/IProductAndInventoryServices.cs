@@ -11,6 +11,12 @@ public interface IProductService
 
 public interface IInventoryService
 {
+    Task<List<WarehouseDto>> GetWarehousesAsync();
     Task<StockSummaryDto> GetStockSummaryAsync(long productId);
     Task<bool> RecordTransactionAsync(RecordStockTransactionRequestDto request, long createdByUserId);
+    Task<StockReservationDto> ReserveStockAsync(ReserveStockRequestDto request);
+    Task<bool> ReleaseReservationAsync(long reservationId);
+    Task<bool> ConfirmReservationAsync(ConfirmReservationRequestDto request, long createdByUserId);
+    Task<bool> TransferStockAsync(TransferStockRequestDto request, long createdByUserId);
+    Task<int> CleanupExpiredReservationsAsync();
 }
