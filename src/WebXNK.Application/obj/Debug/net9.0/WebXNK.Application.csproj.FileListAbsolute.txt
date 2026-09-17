@@ -13,3 +13,19 @@ F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\refint\WebXNK.Application.dll
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.pdb
 F:\tl\Tư liệu để viết CV\WebXNK\src\WebXNK.Application\obj\Debug\net9.0\ref\WebXNK.Application.dll
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.deps.json
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.dll
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Application.pdb
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.dll
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\bin\Debug\net9.0\WebXNK.Domain.pdb
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.AssemblyReference.cache
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfoInputs.cache
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.AssemblyInfo.cs
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.csproj.CoreCompileInputs.cache
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.sourcelink.json
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.A.66C47FA0.Up2Date
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.dll
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\refint\WebXNK.Application.dll
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\WebXNK.Application.pdb
+D:\Web App\Xuất Nhập Khẩu\src\WebXNK.Application\obj\Debug\net9.0\ref\WebXNK.Application.dll

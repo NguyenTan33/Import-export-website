@@ -1,7 +1,52 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "D:\\Download\\Import-export-website\\",
-  "Documents": [],
+  "WorkspaceRootPath": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.api\\controllers\\v1\\categoriescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\controllers\\v1\\categoriescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.api\\controllers\\v1\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\controllers\\v1\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.api\\controllers\\baseapicontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\controllers\\baseapicontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.domain\\entities\\complianceentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|solutionrelative:src\\webxnk.domain\\entities\\complianceentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.domain\\entities\\catalogentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|solutionrelative:src\\webxnk.domain\\entities\\catalogentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.domain\\entities\\pricingentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|solutionrelative:src\\webxnk.domain\\entities\\pricingentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.domain\\entities\\salesentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{224CDACD-FB82-40CB-AEB2-6B92D0D3B55F}|src\\WebXNK.Domain\\WebXNK.Domain.csproj|solutionrelative:src\\webxnk.domain\\entities\\salesentities.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D7E06FFD-1C1D-4EB5-B60D-B6D47D60A575}|src\\WebXNK.Application\\WebXNK.Application.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.application\\dependencyinjection.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D7E06FFD-1C1D-4EB5-B60D-B6D47D60A575}|src\\WebXNK.Application\\WebXNK.Application.csproj|solutionrelative:src\\webxnk.application\\dependencyinjection.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D7E06FFD-1C1D-4EB5-B60D-B6D47D60A575}|src\\WebXNK.Application\\WebXNK.Application.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.application\\validators\\authvalidators.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D7E06FFD-1C1D-4EB5-B60D-B6D47D60A575}|src\\WebXNK.Application\\WebXNK.Application.csproj|solutionrelative:src\\webxnk.application\\validators\\authvalidators.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|d:\\web app\\xu\u1EA5t nh\u1EADp kh\u1EA9u\\src\\webxnk.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +54,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 15,
           "Children": [
             {
               "$type": "Bookmark",
@@ -38,6 +83,140 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "CategoriesController.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\V1\\CategoriesController.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Api\\Controllers\\V1\\CategoriesController.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\V1\\CategoriesController.cs",
+              "RelativeToolTip": "src\\WebXNK.Api\\Controllers\\V1\\CategoriesController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:58:29.382Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "BaseApiController.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\BaseApiController.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Api\\Controllers\\BaseApiController.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\BaseApiController.cs",
+              "RelativeToolTip": "src\\WebXNK.Api\\Controllers\\BaseApiController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:58:22.545Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ComplianceEntities.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\ComplianceEntities.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Domain\\Entities\\ComplianceEntities.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\ComplianceEntities.cs",
+              "RelativeToolTip": "src\\WebXNK.Domain\\Entities\\ComplianceEntities.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:41:09.183Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "CatalogEntities.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\CatalogEntities.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Domain\\Entities\\CatalogEntities.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\CatalogEntities.cs",
+              "RelativeToolTip": "src\\WebXNK.Domain\\Entities\\CatalogEntities.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:41:08.263Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "PricingEntities.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\PricingEntities.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Domain\\Entities\\PricingEntities.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\PricingEntities.cs",
+              "RelativeToolTip": "src\\WebXNK.Domain\\Entities\\PricingEntities.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:41:06.49Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "SalesEntities.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\SalesEntities.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Domain\\Entities\\SalesEntities.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Domain\\Entities\\SalesEntities.cs",
+              "RelativeToolTip": "src\\WebXNK.Domain\\Entities\\SalesEntities.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:41:05.472Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "DependencyInjection.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Application\\DependencyInjection.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Application\\DependencyInjection.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Application\\DependencyInjection.cs",
+              "RelativeToolTip": "src\\WebXNK.Application\\DependencyInjection.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:40:54.758Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "AuthValidators.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Application\\Validators\\AuthValidators.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Application\\Validators\\AuthValidators.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Application\\Validators\\AuthValidators.cs",
+              "RelativeToolTip": "src\\WebXNK.Application\\Validators\\AuthValidators.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:40:37.483Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Program.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Api\\Program.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Program.cs",
+              "RelativeToolTip": "src\\WebXNK.Api\\Program.cs",
+              "ViewState": "AgIAABsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:26:46.362Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AuthController.cs",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\V1\\AuthController.cs",
+              "RelativeDocumentMoniker": "src\\WebXNK.Api\\Controllers\\V1\\AuthController.cs",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\Controllers\\V1\\AuthController.cs",
+              "RelativeToolTip": "src\\WebXNK.Api\\Controllers\\V1\\AuthController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T13:58:28.481Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\appsettings.json",
+              "RelativeDocumentMoniker": "src\\WebXNK.Api\\appsettings.json",
+              "ToolTip": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\src\\WebXNK.Api\\appsettings.json",
+              "RelativeToolTip": "src\\WebXNK.Api\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAqAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-14T13:25:44.797Z"
             }
           ]
         }
