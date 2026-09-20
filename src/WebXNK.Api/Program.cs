@@ -40,12 +40,28 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+
+    // Hỗ trợ truyền JWT Access Token qua Query String cho SignalR WebSocket Hubs (EXP-53, EXP-96)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
 
-// 3. Controllers & Routing
+// 3. Controllers, SignalR & Routing
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
 // 4. Cấu hình Swagger OpenAPI kèm Authorization Header [Bearer {token}]
@@ -121,6 +137,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<WebXNK.Api.Hubs.RfqNegotiationHub>("/hubs/rfq-negotiation");
 
 // 9. Khởi tạo và nạp dữ liệu mẫu (Seed Data)
 using (var scope = app.Services.CreateScope())

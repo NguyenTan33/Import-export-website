@@ -38,6 +38,15 @@ public static class DependencyInjection
         // Background worker tự động giải phóng hàng giữ chỗ quá hạn 30 phút (EXP-79)
         services.AddHostedService<Services.BackgroundJobs.ExpiredReservationCleanupWorker>();
 
+        // Cổng thanh toán Stripe SDK & B2B Wire Transfer T/T (EXP-40 đến EXP-44, EXP-60 đến EXP-63)
+        services.AddScoped<WebXNK.Application.Interfaces.IPaymentService, Services.Payment.StripeAndB2BPaymentService>();
+
+        // Background worker tự động cập nhật tỷ giá FX mỗi 6 tiếng (EXP-19)
+        services.AddHostedService<Services.BackgroundJobs.ExchangeRateUpdateWorker>();
+
+        // Background worker quét và đóng các RFQ hết hạn hiệu lực giá (EXP-95)
+        services.AddHostedService<Services.BackgroundJobs.ExpiredRfqCleanupWorker>();
+
         return services;
     }
 }
