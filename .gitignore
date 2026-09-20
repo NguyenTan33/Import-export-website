@@ -37,3 +37,8 @@ Thumbs.db
 # Rider / JetBrains
 .idea/
 *.sln.iml
+
+# Reports & generated summaries
+[Rr]eport/
+Report/
+
