@@ -1,5 +1,6 @@
 {
   "Version": 1,
+<<<<<<< HEAD
   "WorkspaceRootPath": "D:\\Web App\\Xu\u1EA5t Nh\u1EADp Kh\u1EA9u\\",
   "Documents": [
     {
@@ -47,10 +48,15 @@
       "RelativeMoniker": "D:0:0:{422285F2-DA4A-4DA8-8076-5A635A88FEE2}|src\\WebXNK.Api\\WebXNK.Api.csproj|solutionrelative:src\\webxnk.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     }
   ],
+=======
+  "WorkspaceRootPath": "D:\\intern\\Import-export-website\\",
+  "Documents": [],
+>>>>>>> main
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
+<<<<<<< HEAD
       "DocumentGroups": [
         {
           "DockedWidth": 200,
@@ -221,6 +227,9 @@
           ]
         }
       ]
+=======
+      "DocumentGroups": []
+>>>>>>> main
     }
   ]
 }

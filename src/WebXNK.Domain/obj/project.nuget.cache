@@ -1,5 +1,6 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "dgSpecHash": "i5Uko7VHklM=",
   "success": true,
   "projectFilePath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj",
@@ -8,5 +9,11 @@
     "C:\\Users\\minht\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.11\\microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
     "C:\\Users\\minht\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.11\\microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512"
   ],
+=======
+  "dgSpecHash": "LN4iQfS1AVE=",
+  "success": true,
+  "projectFilePath": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj",
+  "expectedPackageFiles": [],
+>>>>>>> main
   "logs": []
 }

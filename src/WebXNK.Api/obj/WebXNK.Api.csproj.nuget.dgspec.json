@@ -1,6 +1,7 @@
 {
   "format": 1,
   "restore": {
+<<<<<<< HEAD
     "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Api\\WebXNK.Api.csproj": {}
   },
   "projects": {
@@ -12,12 +13,29 @@
         "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Api\\WebXNK.Api.csproj",
         "packagesPath": "C:\\Users\\minht\\.nuget\\packages\\",
         "outputPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Api\\obj\\",
+=======
+    "D:\\intern\\Import-export-website\\src\\WebXNK.Api\\WebXNK.Api.csproj": {}
+  },
+  "projects": {
+    "D:\\intern\\Import-export-website\\src\\WebXNK.Api\\WebXNK.Api.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\intern\\Import-export-website\\src\\WebXNK.Api\\WebXNK.Api.csproj",
+        "projectName": "WebXNK.Api",
+        "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Api\\WebXNK.Api.csproj",
+        "packagesPath": "C:\\Users\\thuyen\\.nuget\\packages\\",
+        "outputPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Api\\obj\\",
+>>>>>>> main
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
+<<<<<<< HEAD
           "C:\\Users\\minht\\AppData\\Roaming\\NuGet\\NuGet.Config",
+=======
+          "C:\\Users\\thuyen\\AppData\\Roaming\\NuGet\\NuGet.Config",
+>>>>>>> main
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,18 +44,25 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
+<<<<<<< HEAD
               "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\WebXNK.Application.csproj": {
                 "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\WebXNK.Application.csproj"
               },
               "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj": {
                 "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj"
+=======
+              "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj": {
+                "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj"
+              },
+              "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj": {
+                "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj"
+>>>>>>> main
               }
             }
           }
@@ -114,6 +139,7 @@
               "privateAssets": "all"
             }
           },
+<<<<<<< HEAD
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json"
         }
       }
@@ -126,12 +152,30 @@
         "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\WebXNK.Application.csproj",
         "packagesPath": "C:\\Users\\minht\\.nuget\\packages\\",
         "outputPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\obj\\",
+=======
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj",
+        "projectName": "WebXNK.Application",
+        "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj",
+        "packagesPath": "C:\\Users\\thuyen\\.nuget\\packages\\",
+        "outputPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\obj\\",
+>>>>>>> main
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
+<<<<<<< HEAD
           "C:\\Users\\minht\\AppData\\Roaming\\NuGet\\NuGet.Config",
+=======
+          "C:\\Users\\thuyen\\AppData\\Roaming\\NuGet\\NuGet.Config",
+>>>>>>> main
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -140,15 +184,19 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
+<<<<<<< HEAD
               "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj": {
                 "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj"
+=======
+              "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj": {
+                "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj"
+>>>>>>> main
               }
             }
           }
@@ -208,6 +256,7 @@
               "privateAssets": "all"
             }
           },
+<<<<<<< HEAD
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json"
         }
       }
@@ -220,12 +269,30 @@
         "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj",
         "packagesPath": "C:\\Users\\minht\\.nuget\\packages\\",
         "outputPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\obj\\",
+=======
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj",
+        "projectName": "WebXNK.Domain",
+        "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj",
+        "packagesPath": "C:\\Users\\thuyen\\.nuget\\packages\\",
+        "outputPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\obj\\",
+>>>>>>> main
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
+<<<<<<< HEAD
           "C:\\Users\\minht\\AppData\\Roaming\\NuGet\\NuGet.Config",
+=======
+          "C:\\Users\\thuyen\\AppData\\Roaming\\NuGet\\NuGet.Config",
+>>>>>>> main
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -234,7 +301,6 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -288,6 +354,7 @@
               "privateAssets": "all"
             }
           },
+<<<<<<< HEAD
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json"
         }
       }
@@ -300,12 +367,30 @@
         "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\minht\\.nuget\\packages\\",
         "outputPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Infrastructure\\obj\\",
+=======
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj",
+        "projectName": "WebXNK.Infrastructure",
+        "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\WebXNK.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\thuyen\\.nuget\\packages\\",
+        "outputPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Infrastructure\\obj\\",
+>>>>>>> main
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
+<<<<<<< HEAD
           "C:\\Users\\minht\\AppData\\Roaming\\NuGet\\NuGet.Config",
+=======
+          "C:\\Users\\thuyen\\AppData\\Roaming\\NuGet\\NuGet.Config",
+>>>>>>> main
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -314,18 +399,25 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
+<<<<<<< HEAD
               "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\WebXNK.Application.csproj": {
                 "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Application\\WebXNK.Application.csproj"
               },
               "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj": {
                 "projectPath": "D:\\Web App\\Xuất Nhập Khẩu\\src\\WebXNK.Domain\\WebXNK.Domain.csproj"
+=======
+              "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj": {
+                "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Application\\WebXNK.Application.csproj"
+              },
+              "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj": {
+                "projectPath": "D:\\intern\\Import-export-website\\src\\WebXNK.Domain\\WebXNK.Domain.csproj"
+>>>>>>> main
               }
             }
           }
@@ -346,6 +438,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "AWSSDK.S3": {
+              "target": "Package",
+              "version": "[4.0.103.3, )"
+            },
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.0.3, )"
@@ -360,9 +456,17 @@
               "target": "Package",
               "version": "[9.0.0, )"
             },
+            "Microsoft.Extensions.Hosting.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            },
             "Microsoft.IdentityModel.Tokens": {
               "target": "Package",
               "version": "[8.2.1, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2024.12.3, )"
             },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
@@ -399,7 +503,11 @@
               "privateAssets": "all"
             }
           },
+<<<<<<< HEAD
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json"
+=======
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+>>>>>>> main
         }
       }
     }

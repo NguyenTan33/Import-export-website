@@ -5,6 +5,8 @@ using Microsoft.OpenApi.Models;
 using WebXNK.Api.Middlewares;
 using WebXNK.Application;
 using WebXNK.Infrastructure;
+using WebXNK.Infrastructure.Persistence.Context;
+using WebXNK.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,12 +111,23 @@ app.UseSwaggerUI(c =>
 
 app.UseCors("AllowNextJsClient");
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // 8. Auth Middlewares (Authentication trước Authorization)
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// 9. Khởi tạo và nạp dữ liệu mẫu (Seed Data)
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<WebXnkDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DbInitializer.InitializeAsync(context, logger);
+}
 
 app.Run();
