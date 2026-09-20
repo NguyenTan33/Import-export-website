@@ -16,6 +16,11 @@ public class TierPricingService : ITierPricingService
 
     public async Task<CalculateTierPriceResponseDto> CalculatePriceAsync(CalculateTierPriceRequestDto request)
     {
+        if (request.Quantity <= 0)
+        {
+            throw new ArgumentException("Số lượng yêu cầu tính giá phải lớn hơn 0.");
+        }
+
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.PriceTiers)

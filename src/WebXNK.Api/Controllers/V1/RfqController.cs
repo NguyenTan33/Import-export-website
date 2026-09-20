@@ -31,6 +31,10 @@ public class RfqController : BaseApiController
             var result = await _rfqService.CreateRfqAsync(userId, request);
             return CreatedAtAction(nameof(GetRfqById), new { id = result.Id }, ApiResponse<RfqDetailDto>.Ok(result, "Tạo yêu cầu báo giá RFQ thành công."));
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponse<RfqDetailDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
@@ -58,6 +62,10 @@ public class RfqController : BaseApiController
         {
             var result = await _rfqService.GetRfqByIdAsync(id, userId);
             return Ok(ApiResponse<RfqDetailDto>.Ok(result, "Lấy thông tin RFQ thành công."));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (KeyNotFoundException ex)
         {
@@ -127,6 +135,10 @@ public class RfqController : BaseApiController
             var result = await _rfqService.AddCounterOfferAsync(userId, id, request);
             return Ok(ApiResponse<RfqDetailDto>.Ok(result, "Gửi đề xuất thương lượng giá thành công."));
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(ApiResponse<RfqDetailDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
@@ -150,6 +162,10 @@ public class RfqController : BaseApiController
         {
             var result = await _rfqService.AcceptQuotationAsync(userId, id);
             return Ok(ApiResponse<RfqDetailDto>.Ok(result, "Chấp thuận báo giá thành công."));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (InvalidOperationException ex)
         {

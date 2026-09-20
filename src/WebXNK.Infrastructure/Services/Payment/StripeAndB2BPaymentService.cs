@@ -243,6 +243,17 @@ public class StripeAndB2BPaymentService : IPaymentService
             throw new KeyNotFoundException($"RFQ with ID {request.RfqId} was not found.");
         }
 
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var isStaff = user?.UserRoles.Any(ur => ur.Role.Name is "Admin_Super" or "Sales_Executive") ?? false;
+        if (!isStaff && rfq.Company != null && rfq.Company.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("Bạn không có quyền nộp chứng từ thanh toán cho yêu cầu báo giá này.");
+        }
+
         var payment = new B2BPayment
         {
             RfqId = rfq.Id,

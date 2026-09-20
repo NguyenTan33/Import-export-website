@@ -48,7 +48,11 @@ public class PaymentsController : BaseApiController
     [AllowAnonymous]
     public async Task<IActionResult> StripeWebhook()
     {
-        var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
+        Request.EnableBuffering();
+        using var reader = new StreamReader(Request.Body, System.Text.Encoding.UTF8, leaveOpen: true);
+        var json = await reader.ReadToEndAsync();
+        Request.Body.Position = 0;
+
         var signatureHeader = Request.Headers["Stripe-Signature"].ToString();
 
         var success = await _paymentService.HandleStripeWebhookEventAsync(json, signatureHeader);
@@ -70,10 +74,19 @@ public class PaymentsController : BaseApiController
     public async Task<IActionResult> SubmitB2BPaymentSlip([FromBody] SubmitB2BPaymentSlipRequestDto request)
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0)
+        {
+            return Unauthorized(ApiResponse<B2BPaymentResponseDto>.Fail(StatusCodes.Status401Unauthorized, "Token không hợp lệ."));
+        }
+
         try
         {
             var result = await _paymentService.SubmitB2BPaymentSlipAsync(userId, request);
             return StatusCode(StatusCodes.Status201Created, ApiResponse<B2BPaymentResponseDto>.Ok(result, "Nộp chứng từ chuyển tiền thành công, đang chờ thẩm định."));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (KeyNotFoundException ex)
         {

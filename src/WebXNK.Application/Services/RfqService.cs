@@ -36,6 +36,17 @@ public class RfqService : IRfqService
             throw new KeyNotFoundException($"Company with ID {request.CompanyId} was not found.");
         }
 
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var isStaff = user?.UserRoles.Any(ur => ur.Role.Name is "Admin_Super" or "Sales_Executive") ?? false;
+        if (!isStaff && company.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("Bạn chỉ được phép tạo yêu cầu báo giá cho chính doanh nghiệp của mình.");
+        }
+
         if (request.Items == null || request.Items.Count == 0)
         {
             throw new ArgumentException("Yêu cầu báo giá phải có ít nhất 1 mặt hàng.");
@@ -142,6 +153,20 @@ public class RfqService : IRfqService
             throw new KeyNotFoundException($"RFQ with ID {rfqId} was not found.");
         }
 
+        if (requestingUserId.HasValue)
+        {
+            var requestingUser = await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == requestingUserId.Value);
+
+            var isStaff = requestingUser?.UserRoles.Any(ur => ur.Role.Name is "Admin_Super" or "Sales_Executive") ?? false;
+            if (!isStaff && rfq.Company != null && rfq.Company.UserId != requestingUserId.Value)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập yêu cầu báo giá của doanh nghiệp khác.");
+            }
+        }
+
         return rfq.ToDetailDto();
     }
 
@@ -235,12 +260,24 @@ public class RfqService : IRfqService
     public async Task<RfqDetailDto> AddCounterOfferAsync(long userId, long rfqId, CounterOfferRequestDto request)
     {
         var rfq = await _context.RfqRequests
+            .Include(r => r.Company)
             .Include(r => r.NegotiationHistories)
             .FirstOrDefaultAsync(r => r.Id == rfqId);
 
         if (rfq == null)
         {
             throw new KeyNotFoundException($"RFQ with ID {rfqId} was not found.");
+        }
+
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var isStaff = user?.UserRoles.Any(ur => ur.Role.Name is "Admin_Super" or "Sales_Executive") ?? false;
+        if (!isStaff && rfq.Company != null && rfq.Company.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("Bạn không có quyền thương lượng trên yêu cầu báo giá này.");
         }
 
         _statePolicy.EnsureCanTransition(rfq.Status, "REVISED");
@@ -266,12 +303,24 @@ public class RfqService : IRfqService
     public async Task<RfqDetailDto> AcceptQuotationAsync(long userId, long rfqId)
     {
         var rfq = await _context.RfqRequests
+            .Include(r => r.Company)
             .Include(r => r.NegotiationHistories)
             .FirstOrDefaultAsync(r => r.Id == rfqId);
 
         if (rfq == null)
         {
             throw new KeyNotFoundException($"RFQ with ID {rfqId} was not found.");
+        }
+
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var isStaff = user?.UserRoles.Any(ur => ur.Role.Name is "Admin_Super" or "Sales_Executive") ?? false;
+        if (!isStaff && rfq.Company != null && rfq.Company.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("Bạn không có quyền chấp thuận yêu cầu báo giá này.");
         }
 
         _statePolicy.EnsureCanTransition(rfq.Status, "ACCEPTED");
