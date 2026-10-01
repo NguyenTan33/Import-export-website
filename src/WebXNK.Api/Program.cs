@@ -137,6 +137,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<WebXNK.Api.Hubs.RfqNegotiationHub>("/hubs/negotiation");
 app.MapHub<WebXNK.Api.Hubs.RfqNegotiationHub>("/hubs/rfq-negotiation");
 
 // 9. Khởi tạo và nạp dữ liệu mẫu (Seed Data)
