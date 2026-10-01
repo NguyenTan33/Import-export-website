@@ -8,10 +8,14 @@ namespace WebXNK.Api.Controllers.V1;
 public class PricingController : BaseApiController
 {
     private readonly ITierPricingService _tierPricingService;
+    private readonly IIncotermsCalculationService _incotermsService;
 
-    public PricingController(ITierPricingService tierPricingService)
+    public PricingController(
+        ITierPricingService tierPricingService,
+        IIncotermsCalculationService incotermsService)
     {
         _tierPricingService = tierPricingService;
+        _incotermsService = incotermsService;
     }
 
     /// <summary>
@@ -30,6 +34,25 @@ public class PricingController : BaseApiController
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<CalculateTierPriceResponseDto>.Fail(StatusCodes.Status404NotFound, ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Động cơ tính toán báo giá Incoterms 2020 gồm cước biển (Ocean Freight) và bảo hiểm hàng hải (Marine Insurance) (EXP-47, EXP-51)
+    /// </summary>
+    [HttpPost("calculate-incoterms")]
+    [ProducesResponseType(typeof(ApiResponse<CalculateIncotermsQuoteResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CalculateIncoterms([FromBody] CalculateIncotermsQuoteRequestDto request)
+    {
+        try
+        {
+            var result = await _incotermsService.CalculateIncotermsQuoteAsync(request);
+            return Ok(ApiResponse<CalculateIncotermsQuoteResponseDto>.Ok(result, "Tính toán báo giá Incoterms thành công."));
+        }
+        catch (NotSupportedException ex)
+        {
+            return BadRequest(ApiResponse<CalculateIncotermsQuoteResponseDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
         }
     }
 }

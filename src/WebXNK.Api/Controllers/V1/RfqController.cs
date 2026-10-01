@@ -74,6 +74,18 @@ public class RfqController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh sách RFQ của doanh nghiệp mà người dùng hiện tại đang đăng nhập (EXP-45, EXP-50)
+    /// </summary>
+    [HttpGet("my-rfqs")]
+    [ProducesResponseType(typeof(ApiResponse<List<RfqSummaryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyRfqs()
+    {
+        var userId = GetCurrentUserId();
+        var result = await _rfqService.GetMyRfqsAsync(userId);
+        return Ok(ApiResponse<List<RfqSummaryDto>>.Ok(result, "Lấy danh sách RFQ doanh nghiệp của bạn thành công."));
+    }
+
+    /// <summary>
     /// Lấy danh sách RFQ của một doanh nghiệp
     /// </summary>
     [HttpGet("company/{companyId:long}")]

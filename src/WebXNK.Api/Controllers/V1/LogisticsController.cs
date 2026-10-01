@@ -1,17 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.Common.Models;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
+using WebXNK.Domain.Entities;
 
 namespace WebXNK.Api.Controllers.V1;
 
 public class LogisticsController : BaseApiController
 {
     private readonly ICbmCalculatorService _cbmCalculatorService;
+    private readonly IApplicationDbContext _context;
 
-    public LogisticsController(ICbmCalculatorService cbmCalculatorService)
+    public LogisticsController(
+        ICbmCalculatorService cbmCalculatorService,
+        IApplicationDbContext context)
     {
         _cbmCalculatorService = cbmCalculatorService;
+        _context = context;
+    }
+
+    /// <summary>
+    /// Lấy danh mục các điều kiện thương mại quốc tế Incoterms 2020 (FOB, CIF, EXW, DDP...) (EXP-47)
+    /// </summary>
+    [HttpGet("incoterms")]
+    [ProducesResponseType(typeof(ApiResponse<List<Incoterm>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetIncoterms()
+    {
+        var list = await _context.Incoterms.AsNoTracking().ToListAsync();
+        return Ok(ApiResponse<List<Incoterm>>.Ok(list, "Lấy danh mục Incoterms 2020 thành công."));
     }
 
     /// <summary>
@@ -44,6 +62,7 @@ public class LogisticsController : BaseApiController
     /// Động cơ tối ưu hóa đóng hàng hỗn hợp (Mixed Cargo) và Pallet cho nhiều sản phẩm khác nhau (EXP-64, EXP-65)
     /// </summary>
     [HttpPost("cbm-calculator/multi-item")]
+    [HttpPost("calculate-cbm")]
     [ProducesResponseType(typeof(ApiResponse<CalculateMultiItemCbmResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult CalculateMultiItemContainer([FromBody] CalculateMultiItemCbmRequestDto request)
