@@ -30,10 +30,19 @@ public class RfqService : IRfqService
 
     public async Task<RfqDetailDto> CreateRfqAsync(long userId, CreateRfqRequestDto request)
     {
-        var company = await _context.Companies.FindAsync(request.CompanyId);
+        Company? company = null;
+        if (request.CompanyId.HasValue && request.CompanyId.Value > 0)
+        {
+            company = await _context.Companies.FindAsync(request.CompanyId.Value);
+        }
+        else
+        {
+            company = await _context.Companies.FirstOrDefaultAsync(c => c.UserId == userId);
+        }
+
         if (company == null)
         {
-            throw new KeyNotFoundException($"Company with ID {request.CompanyId} was not found.");
+            throw new KeyNotFoundException("Không tìm thấy thông tin doanh nghiệp B2B của bạn. Vui lòng hoàn tất hồ sơ doanh nghiệp trước khi tạo yêu cầu báo giá.");
         }
 
         var user = await _context.Users
@@ -118,7 +127,7 @@ public class RfqService : IRfqService
         var rfq = new RfqRequest
         {
             RfqNumber = rfqNumber,
-            CompanyId = request.CompanyId,
+            CompanyId = company.Id,
             IncotermCode = request.IncotermCode.Trim().ToUpperInvariant(),
             PortOfLoading = request.PortOfLoading,
             PortOfDischarge = request.PortOfDischarge,
@@ -179,6 +188,17 @@ public class RfqService : IRfqService
             .ToListAsync();
 
         return rfqs.Select(r => r.ToSummaryDto()).ToList();
+    }
+
+    public async Task<List<RfqSummaryDto>> GetMyRfqsAsync(long userId)
+    {
+        var company = await _context.Companies.FirstOrDefaultAsync(c => c.UserId == userId);
+        if (company == null)
+        {
+            return new List<RfqSummaryDto>();
+        }
+
+        return await GetCompanyRfqsAsync(company.Id);
     }
 
     public async Task<List<RfqSummaryDto>> GetAllRfqsAsync(string? status = null)

@@ -4,8 +4,7 @@ namespace WebXNK.Application.DTOs;
 
 public class CreateRfqRequestDto
 {
-    [Required]
-    public long CompanyId { get; set; }
+    public long? CompanyId { get; set; }
 
     [Required]
     [StringLength(10)]

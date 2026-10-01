@@ -7,6 +7,7 @@ public interface IRfqService
     Task<RfqDetailDto> CreateRfqAsync(long userId, CreateRfqRequestDto request);
     Task<RfqDetailDto> GetRfqByIdAsync(long rfqId, long? requestingUserId = null);
     Task<List<RfqSummaryDto>> GetCompanyRfqsAsync(long companyId);
+    Task<List<RfqSummaryDto>> GetMyRfqsAsync(long userId);
     Task<List<RfqSummaryDto>> GetAllRfqsAsync(string? status = null);
 
     // Sales báo giá
