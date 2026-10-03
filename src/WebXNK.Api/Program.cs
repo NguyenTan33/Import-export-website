@@ -64,6 +64,24 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
+// 3.1 Tối ưu hiệu năng: In-Memory Caching & HTTP Response Caching & Compression (Gzip / Brotli)
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCaching();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+
 // 4. Cấu hình Swagger OpenAPI kèm Authorization Header [Bearer {token}]
 builder.Services.AddSwaggerGen(options =>
 {
@@ -114,7 +132,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 6. Pipeline: Global Exception Middleware
+// 6. Pipeline: Response Compression & Global Exception Middleware
+app.UseResponseCompression();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // 7. Swagger UI
@@ -126,6 +145,7 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowNextJsClient");
+app.UseResponseCaching();
 
 if (!app.Environment.IsDevelopment())
 {

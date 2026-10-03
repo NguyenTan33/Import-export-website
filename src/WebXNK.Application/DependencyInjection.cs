@@ -8,6 +8,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.AddMemoryCache();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ICbmCalculatorService, CbmCalculatorService>();
         services.AddScoped<ITierPricingService, TierPricingService>();

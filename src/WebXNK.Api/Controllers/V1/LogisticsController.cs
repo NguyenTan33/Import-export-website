@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.Common.Models;
 using WebXNK.Application.DTOs;
@@ -12,23 +13,35 @@ public class LogisticsController : BaseApiController
 {
     private readonly ICbmCalculatorService _cbmCalculatorService;
     private readonly IApplicationDbContext _context;
+    private readonly IMemoryCache? _cache;
 
     public LogisticsController(
         ICbmCalculatorService cbmCalculatorService,
-        IApplicationDbContext context)
+        IApplicationDbContext context,
+        IMemoryCache? cache = null)
     {
         _cbmCalculatorService = cbmCalculatorService;
         _context = context;
+        _cache = cache;
     }
 
     /// <summary>
     /// Lấy danh mục các điều kiện thương mại quốc tế Incoterms 2020 (FOB, CIF, EXW, DDP...) (EXP-47)
     /// </summary>
     [HttpGet("incoterms")]
+    [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<List<Incoterm>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncoterms()
     {
+        const string cacheKey = "Logistics_Incoterms_List";
+        if (_cache != null && _cache.TryGetValue(cacheKey, out List<Incoterm>? cachedList) && cachedList != null)
+        {
+            return Ok(ApiResponse<List<Incoterm>>.Ok(cachedList, "Lấy danh mục Incoterms 2020 thành công."));
+        }
+
         var list = await _context.Incoterms.AsNoTracking().ToListAsync();
+        _cache?.Set(cacheKey, list, TimeSpan.FromHours(1));
+
         return Ok(ApiResponse<List<Incoterm>>.Ok(list, "Lấy danh mục Incoterms 2020 thành công."));
     }
 

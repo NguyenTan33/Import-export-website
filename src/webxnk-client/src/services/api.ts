@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 import { Product, Category, Warehouse, InventoryBalance, CbmItemInput, CbmCalculationResult, RfqRequestDto } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -38,6 +38,39 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Client-side Memory Cache with TTL for high performance & reduced network roundtrips
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const cacheStore = new Map<string, CacheEntry<unknown>>();
+
+export const clientCache = {
+  get: <T>(key: string, ttlMs: number): T | null => {
+    const entry = cacheStore.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > ttlMs) {
+      cacheStore.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  },
+  set: <T>(key: string, data: T): void => {
+    cacheStore.set(key, { data, timestamp: Date.now() });
+  },
+  clear: (pattern?: string): void => {
+    if (!pattern) {
+      cacheStore.clear();
+      return;
+    }
+    for (const key of cacheStore.keys()) {
+      if (key.includes(pattern)) {
+        cacheStore.delete(key);
+      }
+    }
+  },
+};
+
 // 1. Catalog & Product Services
 export const catalogApi = {
   getProducts: async (categoryId?: number, keyword?: string): Promise<Product[]> => {
@@ -59,8 +92,12 @@ export const catalogApi = {
     }
   },
   getCategories: async (): Promise<Category[]> => {
+    const cacheKey = "catalog_categories";
+    const cached = clientCache.get<Category[]>(cacheKey, 5 * 60 * 1000);
+    if (cached) return cached;
     try {
       const response = await apiClient.get<Category[]>("/categories");
+      clientCache.set(cacheKey, response.data);
       return response.data;
     } catch {
       return [];
@@ -75,7 +112,11 @@ export const logisticsApi = {
     return response.data;
   },
   getIncoterms: async () => {
+    const cacheKey = "logistics_incoterms";
+    const cached = clientCache.get(cacheKey, 15 * 60 * 1000);
+    if (cached) return cached;
     const response = await apiClient.get("/logistics/incoterms");
+    clientCache.set(cacheKey, response.data);
     return response.data;
   },
 };
@@ -83,7 +124,11 @@ export const logisticsApi = {
 // 3. Inventory Services (EXP-77, EXP-78)
 export const inventoryApi = {
   getWarehouses: async (): Promise<Warehouse[]> => {
+    const cacheKey = "inventory_warehouses";
+    const cached = clientCache.get<Warehouse[]>(cacheKey, 5 * 60 * 1000);
+    if (cached) return cached;
     const response = await apiClient.get<Warehouse[]>("/inventory/warehouses");
+    clientCache.set(cacheKey, response.data);
     return response.data;
   },
   getStockBalance: async (productId: number, warehouseId?: number): Promise<InventoryBalance[]> => {
