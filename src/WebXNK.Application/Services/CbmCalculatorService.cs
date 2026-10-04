@@ -101,6 +101,40 @@ public class CbmCalculatorService : ICbmCalculatorService
 
         foreach (var item in request.Items)
         {
+            if (item.CartonLengthCm <= 0 && item.ProductId.HasValue && _context != null)
+            {
+                var product = _context.Products
+                    .Include(p => p.ExportPackaging)
+                    .Include(p => p.Translations)
+                    .FirstOrDefault(p => p.Id == item.ProductId.Value);
+
+                if (product?.ExportPackaging != null)
+                {
+                    item.CartonLengthCm = product.ExportPackaging.CartonLengthCm;
+                    item.CartonWidthCm = product.ExportPackaging.CartonWidthCm;
+                    item.CartonHeightCm = product.ExportPackaging.CartonHeightCm;
+                    item.GrossWeightPerCartonKg = product.ExportPackaging.GrossWeightKg;
+
+                    var pcs = product.ExportPackaging.PcsPerCarton > 0 ? product.ExportPackaging.PcsPerCarton : 1;
+                    if (item.TotalCartons <= 0 && item.Quantity > 0)
+                    {
+                        item.TotalCartons = (int)Math.Max(1, Math.Ceiling((decimal)item.Quantity / pcs));
+                    }
+                    if (string.IsNullOrWhiteSpace(item.ItemName))
+                    {
+                        var name = product.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
+                                ?? product.Translations.FirstOrDefault()?.Name
+                                ?? product.BaseSku;
+                        item.ItemName = name;
+                    }
+                }
+            }
+
+            if (item.TotalCartons <= 0 && item.Quantity > 0)
+            {
+                item.TotalCartons = item.Quantity;
+            }
+
             if (item.CartonLengthCm <= 0 || item.CartonWidthCm <= 0 || item.CartonHeightCm <= 0 || item.TotalCartons <= 0)
             {
                 continue;
@@ -256,6 +290,16 @@ public class CbmCalculatorService : ICbmCalculatorService
             };
         }
 
+        decimal capCbm = totalCbm <= Container20FtMaxCbm && totalGrossWeight <= Container20FtMaxWeightKg 
+            ? Container20FtMaxCbm 
+            : Container40FtHcMaxCbm;
+        decimal limitKg = capCbm == Container20FtMaxCbm 
+            ? Container20FtMaxWeightKg 
+            : Container40FtHcMaxWeightKg;
+
+        var volUtil = capCbm > 0 ? Math.Round((totalCbm / capCbm) * 100, 2) : 0;
+        var wtUtil = limitKg > 0 ? Math.Round((totalGrossWeight / limitKg) * 100, 2) : 0;
+
         return new CalculateMultiItemCbmResponseDto
         {
             TotalItemsCount = breakdowns.Count,
@@ -264,6 +308,10 @@ public class CbmCalculatorService : ICbmCalculatorService
             TotalGrossWeightKg = totalGrossWeight,
             SuggestedShipmentMode = mode,
             PrimaryRecommendedContainer = primaryRec,
+            ContainerCapacityCbm = capCbm,
+            VolumeUtilizationPercentage = volUtil,
+            WeightLimitKg = limitKg,
+            WeightUtilizationPercentage = wtUtil,
             ContainerPlan = containerPlans,
             PalletSummary = palletSummary,
             ItemBreakdowns = breakdowns,

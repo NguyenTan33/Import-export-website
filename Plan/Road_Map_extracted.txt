@@ -1,0 +1,275 @@
+1. MỤC TIÊU HỆ THỐNG
+Xây dựng một nền tảng thương mại điện tử xuất khẩu quốc tế và bán lẻ xuyên biên giới có tính chất ERP thu nhỏ (Mini-ERP for Cross-Border Trade), tích hợp B2C Retail Commerce, B2B Wholesale/Export RFQ Engine, Container/CBM Packing Optimization, Multi-Currency/i18n, International Payment (Stripe 3D Secure / T/T Wire Transfer), Export Document Management (Commercial Invoice, Packing List, Bill of Lading) và Audit/Security. Hệ thống phải đảm bảo data integrity, transaction safety, idempotency và khả năng mở rộng multi-market/multi-warehouse.
+Tên gọi
+Phạm vi & Công nghệ lựa chọn
+Core Backend
+ASP.NET Core 9.0 Web API + Entity Framework Core (hoặc Node.js/NestJS Clean Architecture)
+Database
+Microsoft SQL Server (hoặc PostgreSQL) - Single DB multi-market/warehouse, JSONB cho dynamic specs
+Frontend Web
+React 19 / Next.js (App Router, Server Components tối ưu SEO quốc tế) + Tailwind CSS + Shadcn UI
+Realtime Engine
+SignalR Hubs cho RFQ live chat, live notification, container loading 3D simulation updates
+Background Jobs
+ASP.NET Core BackgroundService / Hangfire (Tự động cập nhật tỷ giá FX, kiểm tra hạn RFQ, thông báo tàu đến)
+Storage
+Object Storage (AWS S3 / Cloudinary / Azure Blob) lưu ảnh sản phẩm & bộ chứng từ PDF xuất nhập khẩu
+Payment Gateway
+Stripe Elements & Webhook (B2C Credit/Debit Card) + Swift/TT MT103 Bank Slip verification (B2B)
+Document Engine
+QuestPDF / Puppeteer / PDFKit tạo Proforma Invoice, Commercial Invoice, Packing List chuẩn hải quan
+Kiến trúc triển khai
+Modular Monolith phân lớp rõ ràng; Docker containers; GitHub Actions CI/CD; Jira Software tracking
+2. NGUYÊN TẮC KIẾN TRÚC
+[ ] React/Next.js chỉ là presentation và client state; tuyệt đối không là nguồn sự thật cho business rule.
+[ ] ASP.NET Core Web API là business authority duy nhất.
+[ ] Pricing tiers, MOQ validation, Incoterms calculations, Payment intents, và Authorization phải được quyết định ở backend.
+[ ] SQL Server là Single Source of Truth cho toàn bộ dữ liệu nghiệp vụ.
+[ ] Mọi biến động tồn kho xuất nhập khẩu phải đi qua Inventory Transaction / Ledger (Không sửa trực tiếp Inventory.Quantity).
+[ ] Báo giá B2B (RFQ) tuân thủ quy trình State Machine bất biến: Draft -> Submitted -> Quoted -> Accepted -> Deposit Paid -> In Production -> Shipped -> Completed.
+[ ] Transaction lịch sử là immutable; sửa sai bằng reversal/credit note/adjustment có lưu vết Audit Log.
+[ ] Business logic không nằm trong Controller; Controller chỉ làm nhiệm vụ parse request và dispatch use-case.
+[ ] DTO / API Contract tách biệt hoàn toàn khỏi Entity Database để bảo mật.
+[ ] Concurrency & Idempotency phải được thiết kế ngay từ đầu (xử lý trùng lặp thanh toán Stripe Webhook & giữ chỗ hàng tồn container).
+[ ] Audit Log toàn bộ các hành động nhạy cảm: sửa giá sỉ, đổi cước vận tải, duyệt thanh toán T/T, phát hành chứng từ.
+[ ] Multi-currency và Multi-warehouse phải được thiết kế ngay từ schema cơ sở dữ liệu.
+3. KIẾN TRÚC TỔNG THỂ
+Hệ thống hoạt động theo luồng chuẩn enterprise: Client React/Next.js -> HTTPS REST API (JWT/API Key) -> Application Services (Use Cases) -> Domain Entities & Business Rules -> Infrastructure Layer -> SQL Server. SignalR chạy song song cho realtime notifications. Background Service đồng bộ tỷ giá ngoại tệ và quét hạn thanh toán chứng từ.
+Client Layer: React / Next.js (B2C Storefront + B2B Portal + Admin ERP)
+      ↓ (HTTPS / REST API / WSS SignalR)
+API Gateway / Middleware (Auth, CORS, Rate Limiting, CorrelationId, Exception)
+      ↓
+Application Layer (Use Cases / DTOs / CQRS / Validators)
+   ├── Auth & Company Verification Service
+   ├── Catalog & Dynamic Tiered Pricing Engine
+   ├── B2C Order & Stripe Payment Engine
+   ├── B2B RFQ Negotiation & Incoterms Pricing Engine
+   ├── Logistics, CBM & Container Loading Optimization Engine
+   ├── Export Document Generation (PDF Proforma/Commercial/Packing)
+   ├── Inventory Ledger & Multi-Warehouse Allocation
+   ├── Notification & SignalR Hubs
+   └── Currency Exchange Rate Service (Background Job)
+      ↓
+Domain Layer (Entities, Value Objects, Domain Exceptions, Business Invariants)
+      ↓
+Infrastructure Layer (EF Core, SQL Server, AWS S3 Storage, Stripe SDK, QuestPDF)
+4. MA TRẬN PHÂN CÔNG 3 NGƯỜI & QUY ƯỚC JIRA
+Hệ thống được phát triển theo mô hình Agile/Scrum. Dự án trên Jira được đặt mã Project Key là: EXP (Export Platform). Mỗi Epic, Story, Task và Bug đều có Jira ID rõ ràng.
+Thành viên
+Vai trò (Role)
+Primary Ownership (Trách nhiệm chính)
+Jira Component / Prefix
+Đặng Minh Thuyên (A)
+Tech Lead & Core Backend
+Architecture, DB Schema, Auth/RBAC, Multi-Warehouse/Inventory Ledger, CBM Container Engine, Export Docs PDF, Background Jobs, DevOps CI/CD.
+EXP-CORE, EXP-LOGISTICS, EXP-DOCS
+Nguyễn Minh Tân (B)
+Backend & Commerce/Payment
+B2C Order Engine, B2B RFQ Negotiation Workflow, Incoterms 2020 Engine, Stripe Webhook Integration, T/T Wire Transfer Bank Slip, Currency/FX Sync, Reporting.
+EXP-B2B, EXP-B2C, EXP-PAYMENT
+Võ Văn Phú (C)
+Frontend Lead / Full-Stack UI
+React/Next.js Architecture, Multi-language (i18n), B2C Storefront, B2B RFQ Portal, Interactive CBM/Container UI, Admin Dashboard, SignalR Client.
+EXP-FE-STORE, EXP-FE-PORTAL, EXP-FE-ADMIN
+Toàn đội (A + B + C)
+All Members
+API Contract Review, Concurrency Testing, PR Review chéo, Demo Sprint, UAT, Bảo vệ Đồ án.
+EXP-ALL, EXP-TEST
+5. ROADMAP 28 PHASES CHI TIẾT (TÍCH HỢP JIRA TASKS TỪ A - Z)
+Dưới đây là 28 Phase hoàn chỉnh, mỗi phase được bẻ nhỏ thành các Actionable Checklist / Jira Sub-tasks cụ thể để gán trực tiếp cho từng người:
+PHASE 0 – FOUNDATION / DEVOPS / MONOREPO SETUP [Owner: Thuyên (A) + Phú (C)]
+[ ] [EXP-1] Khởi tạo Git Repository, chuẩn hóa Git Flow (main, develop, feature/*, hotfix/*).
+[ ] [EXP-2] Thiết lập Jira Project: Board Scrum, Workflow (To Do -> In Progress -> Code Review -> QA/Test -> Done).
+[ ] [EXP-3] Cấu hình .editorconfig, ESLint, Prettier và C# Roslyn Analyzers.
+[ ] [EXP-4] Thiết lập Backend ASP.NET Core 9 Web API Clean Architecture (Domain, Application, Infrastructure, Api).
+[ ] [EXP-5] Thiết lập Frontend React 19 / Next.js 14 App Router, Tailwind CSS, Shadcn UI.
+[ ] [EXP-6] Cấu hình Docker Compose cho Local Development (SQL Server 2022, Redis, Mailhog).
+[ ] [EXP-7] Thiết lập Swagger / OpenAPI 3.0 với JWT Bearer Authentication.
+[ ] [EXP-8] Thiết lập Global Exception Middleware (ProblemDetails RFC 7807) & CorrelationId.
+[ ] [EXP-9] Cấu hình Structured Logging Serilog (Console, Rolling File, Seq/Loki).
+[ ] [EXP-10] Tạo Test Project (xUnit, FluentAssertions, Moq, Testcontainers).
+PHASE 1 – AUTH / MULTI-ROLE & COMPANY VERIFICATION [Owner: Thuyên (A)]
+[ ] [EXP-11] Entity User, Role, Permission, UserRole, RolePermission trong DB.
+[ ] [EXP-12] Cơ chế xác thực JWT Access Token (ngắn hạn 15m) + Refresh Token Rotation (7d).
+[ ] [EXP-13] Phân quyền 4 nhóm Role chính: B2C_Customer, B2B_Buyer, Sales_Executive, Admin_Super.
+[ ] [EXP-14] Đăng ký tài khoản B2B: Bổ sung thực thể Company (Tax ID / VAT, Business License, Country, Website).
+[ ] [EXP-15] Quy trình phê duyệt doanh nghiệp B2B (Admin Verify Company -> Upgrade Role -> Unlock Tier Pricing).
+[ ] [EXP-16] Bảo mật mật khẩu: PBKDF2 / BCrypt hash, cơ chế khóa tài khoản khi sai pass 5 lần (Lockout).
+[ ] [EXP-17] Chuẩn hóa Email và Phone (E.164 Format) tránh trùng lặp đăng ký.
+PHASE 2 – MULTI-CURRENCY & I18N FOUNDATION [Owner: Tân (B) + Phú (C)]
+[ ] [EXP-18] Bảng Currencies (Code: USD, EUR, VND, JPY; Symbol; ExchangeRateToBase; DecimalPlaces).
+[ ] [EXP-19] Background Job: Tự động cập nhật tỷ giá tiền tệ từ Open Exchange Rates API mỗi 6 tiếng.
+[ ] [EXP-20] Middleware Currency Detection: Nhận diện tiền tệ qua Header `X-Currency` hoặc Geo-IP.
+[ ] [EXP-21] Cấu hình i18n Frontend: Hỗ trợ chuyển đổi ngôn ngữ Anh (EN) - Việt (VI) trên toàn UI.
+[ ] [EXP-22] Format tiền tệ chuẩn quốc tế (Intl.NumberFormat) theo locale của người dùng.
+PHASE 3 – PRODUCT MASTER & EXPORT SPECIFICATIONS [Owner: Thuyên (A) + Phú (C)]
+[ ] [EXP-23] Bảng Products: Tên, Mô tả đa ngôn ngữ, Mã HS Code (Hải quan), Danh mục (Categories).
+[ ] [EXP-24] Bảng ProductVariants: SKU, Barcode, Màu sắc, Kích thước.
+[ ] [EXP-25] Bảng ExportPackaging: Kích thước thùng carton (L x W x H cm), Net Weight, Gross Weight (kg), CBM/Carton, Pcs/Carton.
+[ ] [EXP-26] UI Quản lý Sản phẩm Admin: Nhập liệu thông số kỹ thuật đóng gói xuất khẩu.
+[ ] [EXP-27] Upload hình ảnh sản phẩm đa góc độ lên AWS S3 / Cloudinary.
+PHASE 4 – DYNAMIC TIERED PRICING & MOQ ENGINE [Owner: Tân (B)]
+[ ] [EXP-28] Bảng PriceTiers: ProductId, MinQuantity, MaxQuantity, UnitPrice, DiscountPercentage.
+[ ] [EXP-29] Quy tắc định giá: Giá lẻ B2C (Quantity = 1) vs Giá sỉ B2B theo bậc thang MOQ.
+[ ] [EXP-30] Pricing Engine Service: Tự động tính toán đơn giá tối ưu dựa trên số lượng khách chọn.
+[ ] [EXP-31] Bảo vệ chống thao túng giá: Kiểm tra giá từ database, không tin tưởng giá từ client gửi lên.
+PHASE 5 – CATALOG, SEARCH & PRODUCT DETAIL PAGE (PDP) [Owner: Phú (C)]
+[ ] [EXP-32] Trang Catalog B2C/B2B với bộ lọc đa tiêu chí (Category, Price Range, MOQ, HS Code).
+[ ] [EXP-33] Trang chi tiết sản phẩm (PDP): Chế độ xem kép (Toggle B2C Retail vs B2B Wholesale).
+[ ] [EXP-34] Hiển thị Bảng giá bậc thang (Tiered Pricing Table) trực quan với thanh tiến trình số lượng.
+[ ] [EXP-35] Tab thông số đóng gói xuất khẩu: Thể tích CBM, trọng lượng, quy cách pallet.
+PHASE 6 – B2C CART & INTERNATIONAL CHECKOUT [Owner: Phú (C) + Tân (B)]
+[ ] [EXP-36] Quản lý giỏ hàng B2C: Đồng bộ Client LocalStorage và Server Session khi đăng nhập.
+[ ] [EXP-37] Form Checkout địa chỉ quốc tế: Country selector, State/Province, Postal/Zip code chuẩn ISO 3166.
+[ ] [EXP-38] Tích hợp bảng tính cước chuyển phát nhanh quốc tế ước tính (DHL / FedEx / EMS rates).
+[ ] [EXP-39] Tạo Đơn hàng B2C: Trạng thái Order (Pending, Paid, Processing, Shipped, Delivered, Cancelled).
+PHASE 7 – B2C STRIPE PAYMENT & WEBHOOK ENGINE [Owner: Tân (B)]
+[ ] [EXP-40] Khởi tạo Stripe PaymentIntent tại Backend với số tiền và đơn vị tiền tệ an toàn.
+[ ] [EXP-41] Tích hợp Stripe Elements (Card Number, Expiry, CVC) trên giao diện React tuân thủ PCI-DSS.
+[ ] [EXP-42] Xử lý xác thực bảo mật 3D Secure (SCA - Strong Customer Authentication) cho thẻ quốc tế.
+[ ] [EXP-43] Stripe Webhook Handler: Lắng nghe sự kiện `payment_intent.succeeded` và `payment_intent.failed`.
+[ ] [EXP-44] Idempotency Pattern: Sử dụng `EventId` từ Stripe để ngăn chặn xử lý trùng lặp giao dịch.
+PHASE 8 – B2B RFQ CREATION & INCOTERMS 2020 ENGINE [Owner: Tân (B) + Phú (C)]
+[ ] [EXP-45] Bảng RFQs & RFQItems: Request Number, CompanyId, Incoterm, TargetDeliveryDate, Status.
+[ ] [EXP-46] Form gửi yêu cầu báo giá B2B: Chọn số lượng lớn, yêu cầu đóng gói OEM / Private Label.
+[ ] [EXP-47] Module Incoterms 2020: Cho phép chọn FOB (Free on Board), CIF (Cost Insurance Freight), EXW (Ex Works), DDP (Delivered Duty Paid).
+[ ] [EXP-48] Chọn Cảng bốc hàng (Port of Loading - POL: Hải Phòng, Cát Lái...) và Cảng đích (Port of Discharge - POD: Los Angeles, Rotterdam...).
+[ ] [EXP-49] Validation nghiệp vụ: Không cho phép gửi RFQ nếu số lượng nhỏ hơn MOQ quy định.
+PHASE 9 – B2B NEGOTIATION & QUOTATION MANAGEMENT [Owner: Tân (B) + Thuyên (A)]
+[ ] [EXP-50] Giao diện Quản trị RFQ cho Admin/Sales: Xem chi tiết yêu cầu, phân tích tỷ suất lợi nhuận.
+[ ] [EXP-51] Tính toán chi phí cước biển (Ocean Freight) và Phí bảo hiểm hàng hải (Marine Insurance).
+[ ] [EXP-52] Soạn thảo Báo giá chính thức (Official Quotation) kèm Thời hạn hiệu lực giá (Price Validity: 14/30 ngày).
+[ ] [EXP-53] SignalR Realtime Notification: Bắn thông báo tức thì khi có RFQ mới hoặc có báo giá phản hồi.
+[ ] [EXP-54] Hệ thống đàm phán nhiều vòng (Counter-Offer / Revision history).
+PHASE 10 – PROFORMA INVOICE (PI) PDF GENERATION [Owner: Thuyên (A)]
+[ ] [EXP-55] Thiết kế mẫu Hóa đơn chiếu lệ Proforma Invoice chuẩn thương mại quốc tế (ICC guidelines).
+[ ] [EXP-56] Tích hợp QuestPDF / PDFKit: Sinh file PDF tự động từ dữ liệu RFQ đã được chấp thuận.
+[ ] [EXP-57] Thông tin pháp lý bắt buộc trên PI: Seller & Buyer Info, Swift Code, IBAN, Bank Details, Incoterms, Payment Terms (30% T/T Deposit).
+[ ] [EXP-58] Ký số / Chèn con dấu công ty điện tử vào file PDF.
+[ ] [EXP-59] Lưu trữ và phục vụ tải xuống file PI an toàn qua S3 Presigned URL.
+PHASE 11 – B2B PAYMENT: T/T WIRE TRANSFER & L/C TRACKING [Owner: Tân (B)]
+[ ] [EXP-60] Bảng B2BPayments: RFQId, PaymentMethod (T/T, L/C), Amount, Currency, BankReference, ProofFileUrl.
+[ ] [EXP-61] Giao diện tải lên Ủy nhiệm chi (Bank Slip / SWIFT MT103 confirmation) cho nhà nhập khẩu.
+[ ] [EXP-62] Workflow kế toán: Thẩm định đối soát tiền vào tài khoản ngân hàng -> Duyệt cọc (Deposit Confirmed).
+[ ] [EXP-63] Chuyển trạng thái RFQ sang `IN_PRODUCTION` sau khi xác nhận đặt cọc thành công.
+PHASE 12 – CBM & CONTAINER PACKING OPTIMIZATION ENGINE [Owner: Thuyên (A) + Phú (C)]
+[ ] [EXP-64] Thuật toán tính toán tổng CBM: Total CBM = (L x W x H / 1.000.000) * Tổng số thùng carton.
+[ ] [EXP-65] Kiểm tra sức chứa tiêu chuẩn: Container 20ft (~28 CBM, 21.000 kg) vs 40ft (~65 CBM, 26.000 kg).
+[ ] [EXP-66] Đề xuất phương án vận chuyển tối ưu: Đi hàng lẻ LCL (Less than Container Load) hay nguyên cont FCL.
+[ ] [EXP-67] Giao diện mô phỏng không gian container trực quan (Visualization) trên React.
+PHASE 13 – EXPORT SHIPPING DOCUMENTS (PACKING LIST, CI, B/L) [Owner: Thuyên (A)]
+[ ] [EXP-68] Bảng ShippingDocuments: DocumentType (PackingList, CommercialInvoice, BillOfLading, CertificateOfOrigin).
+[ ] [EXP-69] Module tự động xuất Phiếu đóng gói hàng hóa (Packing List) chi tiết từng kiện, số khối, trọng lượng.
+[ ] [EXP-70] Module tự động xuất Hóa đơn thương mại (Commercial Invoice) phục vụ mở tờ khai hải quan.
+[ ] [EXP-71] Quản lý tải lên và tra cứu Vận đơn đường biển (Bill of Lading - B/L do hãng tàu phát hành).
+PHASE 14 – SHIPMENT MILESTONE TRACKING & TIMELINE [Owner: Phú (C) + Tân (B)]
+[ ] [EXP-72] Bảng ShipmentMilestones: TrackingNumber, VesselName, VoyageNumber, CurrentStatus, Timestamp.
+[ ] [EXP-73] Timeline hành trình trực quan: Goods Ready -> Customs Cleared -> Departed POL -> On Sea -> Arrived POD -> Released.
+[ ] [EXP-74] Admin cập nhật vị trí tàu và dự kiến cập cảng (ETA - Estimated Time of Arrival).
+[ ] [EXP-75] Gửi email thông báo tự động cho đối tác quốc tế khi tàu cập cảng.
+PHASE 15 – MULTI-WAREHOUSE & INVENTORY LEDGER [Owner: Thuyên (A)]
+[ ] [EXP-76] Bảng Warehouses (Kho nội địa, Kho ngoại quan xuất khẩu, Kho chuyển tiếp tại cảng).
+[ ] [EXP-77] Bảng InventoryLedger: Ghi nhận mọi giao dịch nhập kho, xuất kho B2C, giữ chỗ hàng B2B.
+[ ] [EXP-78] Cấm tuyệt đối sửa trực tiếp số lượng tồn kho; mọi thay đổi phải có chứng từ đối ứng.
+[ ] [EXP-79] Cơ chế Reservation (Giữ hàng tồn trong 30 phút khi khách đang checkout hoặc ký hợp đồng RFQ).
+PHASE 16 – CONCURRENCY CONTROL & INVENTORY LOCKING [Owner: Thuyên (A) + Tân (B)]
+[ ] [EXP-80] Xử lý Race Condition: 2 khách quốc tế cùng đặt mua lô hàng cuối cùng tại cùng một thời điểm.
+[ ] [EXP-81] Áp dụng Pessimistic Locking (`SELECT FOR UPDATE`) hoặc Optimistic Locking (`RowVersion/Timestamp`).
+[ ] [EXP-82] Viết Integration Tests mô phỏng 50 concurrent requests cùng đặt hàng để kiểm tra tính toàn vẹn.
+PHASE 17 – AUDIT LOG & COMPLIANCE SYSTEM [Owner: Thuyên (A)]
+[ ] [EXP-83] Bảng AuditLogs: UserId, Action, EntityName, EntityId, OldValues, NewValues, IpAddress, Timestamp.
+[ ] [EXP-84] Tự động ghi vết Audit trong EF Core `SaveChangesAsync` khi có thao tác Create/Update/Delete.
+[ ] [EXP-85] Giao diện tra cứu nhật ký kiểm toán cho Admin: Ai đã đổi giá RFQ, ai đã duyệt thanh toán.
+PHASE 18 – INTERNATIONAL SEO (I18N SEO, METADATA & SCHEMA) [Owner: Phú (C)]
+[ ] [EXP-86] Cấu hình thẻ `hreflang` cho các vùng ngôn ngữ (`en-US`, `vi-VN`, `zh-CN`).
+[ ] [EXP-87] Cấu hình Thẻ Canonical URL tránh trùng lặp nội dung khi chuyển đổi tiền tệ.
+[ ] [EXP-88] Tích hợp Cấu trúc dữ liệu có cấu trúc Schema.org (Product, AggregateOffer, Organization, Breadcrumb).
+[ ] [EXP-89] Tự động sinh `sitemap.xml` đa ngôn ngữ và `robots.txt` chuẩn Google Search Console.
+PHASE 19 – ADMIN ENTERPRISE DASHBOARD & EXPORT ANALYTICS [Owner: Phú (C) + Tân (B)]
+[ ] [EXP-90] Widget thống kê tổng doanh thu phân bổ theo 2 kênh: B2C Retail vs B2B Wholesale.
+[ ] [EXP-91] Bản đồ nhiệt thị trường xuất khẩu (Top Export Destinations: Mỹ, Châu Âu, Nhật Bản...).
+[ ] [EXP-92] Phân tích Pipeline RFQ: Tỷ lệ chuyển đổi từ RFQ sang Hợp đồng đặt cọc thành công.
+[ ] [EXP-93] Báo cáo sức tải container trung bình và lượng CBM xuất khẩu theo tháng.
+PHASE 20 – NOTIFICATION ENGINE & BACKGROUND SERVICES [Owner: Tân (B)]
+[ ] [EXP-94] Email Notification Templates: Xác nhận đơn B2C, Thông báo báo giá RFQ, Nhắc nợ thanh toán 70%.
+[ ] [EXP-95] Background Job: Quét các RFQ quá hạn hiệu lực giá (Expired Validity) để tự động đóng yêu cầu.
+[ ] [EXP-96] SignalR Notification Center: Chuông thông báo góc phải màn hình cho người dùng theo thời gian thực.
+PHASE 21 – SECURITY HARDENING & RATE LIMITING [Owner: Thuyên (A)]
+[ ] [EXP-97] Triển khai Rate Limiting theo IP và User Token (ngăn chặn brute-force và spam RFQ).
+[ ] [EXP-98] Bảo vệ chống tấn công CSRF, XSS và cấu hình Content Security Policy (CSP) chặt chẽ.
+[ ] [EXP-99] Mã hóa dữ liệu nhạy cảm của doanh nghiệp và token ủy quyền trong cơ sở dữ liệu.
+[ ] [EXP-100] Sanitize toàn bộ dữ liệu đầu vào của form RFQ và upload file (chỉ cho phép PDF, PNG, JPG).
+PHASE 22 – INTEGRATION TESTING & COMPREHENSIVE TEST SUITE [Owner: Cả 3 người]
+[ ] [EXP-101] Viết Test Case: Đặt hàng B2C và thanh toán thành công qua Stripe Sandbox.
+[ ] [EXP-102] Viết Test Case: Tạo RFQ B2B -> Admin báo giá -> Chấp thuận -> Xuất file PI PDF sắc nét.
+[ ] [EXP-103] Viết Test Case: Kiểm tra thuật toán CBM đóng container với các kích thước hàng hóa dị biệt.
+[ ] [EXP-104] Viết Test Case: Đối soát thanh toán T/T và xác nhận tiền cọc.
+PHASE 23 – DOCKERIZATION & CI/CD AUTOMATION [Owner: Thuyên (A)]
+[ ] [EXP-105] Viết Dockerfile tối ưu multi-stage build cho Backend ASP.NET Core API.
+[ ] [EXP-106] Viết Dockerfile tối ưu cho Frontend React / Next.js.
+[ ] [EXP-107] Thiết lập GitHub Actions Workflow: Tự động chạy unit test và build image khi tạo PR vào `develop`.
+PHASE 24 – DEPLOYMENT & CLOUD HOSTING [Owner: Thuyên (A) + Phú (C)]
+[ ] [EXP-108] Deploy Database SQL Server / PostgreSQL lên Cloud (Azure SQL / Neon / Supabase).
+[ ] [EXP-109] Deploy Backend API lên VPS / Render / Azure App Service.
+[ ] [EXP-110] Deploy Frontend Web lên Vercel với Custom Domain và SSL Certificate.
+[ ] [EXP-111] Cấu hình biến môi trường production an toàn trên Cloud Provider.
+PHASE 25 – DATA SEEDING & REALISTIC DEMO SCENARIOS [Owner: Cả 3 người]
+[ ] [EXP-112] Seed dữ liệu: 30 sản phẩm xuất khẩu mẫu (Nông sản sấy, Đồ gỗ nội thất, Hàng dệt may).
+[ ] [EXP-113] Seed dữ liệu: Các mức giá bậc thang chuẩn thực tế và thông số thùng carton chính xác.
+[ ] [EXP-114] Tạo sẵn 3 tài khoản demo: Khách mua lẻ US, Công ty nhập khẩu Đức (B2B), Quản trị viên điều hành.
+PHASE 26 – USER ACCEPTANCE TESTING (UAT) & BUG FIXING [Owner: Cả 3 người]
+[ ] [EXP-115] Test luồng người dùng B2C từ lúc vào web đến khi nhận email hóa đơn.
+[ ] [EXP-116] Test luồng B2B từ lúc gửi RFQ đến khi nhận file Vận đơn đường biển B/L.
+[ ] [EXP-117] Kiểm tra tính tương thích Responsive trên Mobile, Tablet và Desktop màn hình lớn.
+PHASE 27 – ĐÓNG GÓI BÁO CÁO ĐỒ ÁN & TÀI LIỆU KỸ THUẬT [Owner: Cả 3 người]
+[ ] [EXP-118] Biên soạn Báo cáo tốt nghiệp (Chương 1: Mở đầu; Chương 2: Cơ sở lý thuyết; Chương 3: Phân tích thiết kế; Chương 4: Triển khai; Chương 5: Đánh giá).
+[ ] [EXP-119] Vẽ đầy đủ biểu đồ UML: Use Case Diagram, Class Diagram, Sequence Diagram, Activity Diagram.
+[ ] [EXP-120] Biên soạn Slide thuyết trình bảo vệ đồ án chuyên nghiệp.
+PHASE 28 – CHUẨN BỊ CV & KỊCH BẢN PHỎNG VẤN TUYỂN DỤNG [Owner: Cả 3 người]
+[ ] [EXP-121] Chuẩn hóa mục kinh nghiệm dự án vào CV cho từng thành viên theo đúng phân công thực tế.
+[ ] [EXP-122] Luyện tập kịch bản trả lời phỏng vấn các câu hỏi hóc búa về kiến trúc và thương mại quốc tế.
+[ ] [EXP-123] Quay video demo ngắn 3 phút trình diễn tính năng độc đáo (CBM Calculator, PI PDF, RFQ Engine) đưa vào Portfolio.
+6. TEST CASES BẮT BUỘC CHO NGHIỆP VỤ XUẤT KHẨU & COMMERCE
+Kịch bản Test (Scenario)
+Hành vi kỳ vọng (Expected Result)
+Jira Test ID
+2 khách B2C cùng mua sản phẩm tồn = 1 qua thẻ Stripe
+Chỉ 1 giao dịch thành công, giao dịch sau báo hết hàng an toàn, không bị double capture.
+EXP-TC-01
+Khách B2B nhập số lượng dưới MOQ gửi RFQ
+Bị chặn ngay từ Client & Server, thông báo 'Số lượng tối thiểu cho đơn sỉ là X'.
+EXP-TC-02
+Stripe gửi Webhook lặp lại 3 lần cùng 1 event
+Idempotency xử lý: Chỉ cập nhật đơn hàng đúng 1 lần, các lần sau trả về 200 OK.
+EXP-TC-03
+Tự động sinh file Proforma Invoice PDF
+File PDF tải xuống có đầy đủ dấu công ty, mã Swift, bảng phân rã chi phí cước biển và Incoterms.
+EXP-TC-04
+Nhập đơn hàng 2.000 thùng carton (kích thước 40x30x30 cm)
+Hệ thống tính ra 72 CBM và tự động đề xuất phương án đi 1 Container 40ft + 1 Container 20ft.
+EXP-TC-05
+Khách thanh toán cọc T/T và upload file PDF Bank Slip giả
+Hệ thống đưa vào hàng đợi kiểm duyệt, chỉ khi Kế toán bấm 'Verify' đơn hàng mới chuyển sang In Production.
+EXP-TC-06
+Đổi ngôn ngữ từ Tiếng Anh sang Tiếng Việt
+Toàn bộ giao diện, thuật ngữ Incoterms và định dạng tiền tệ đổi đồng bộ tức thì không cần reload.
+EXP-TC-07
+Sửa đơn giá sản phẩm trong lúc khách đang xem giỏ hàng
+Khi checkout, hệ thống validate lại giá mới nhất từ DB và cảnh báo thay đổi giá minh bạch.
+EXP-TC-08
+Spam liên tục 100 requests tạo RFQ trong 1 phút
+Rate Limiter kích hoạt chặn IP, trả về mã lỗi 429 Too Many Requests.
+EXP-TC-09
+Xóa sản phẩm đã từng phát sinh giao dịch xuất khẩu
+Soft Delete (IsDeleted = true), giữ nguyên vẹn dữ liệu trong hóa đơn và lịch sử hải quan.
+EXP-TC-10
+7. QUY TRÌNH PHỐI HỢP SONG SONG 3 THÀNH VIÊN TRÊN JIRA & GIT
+Để không bị giẫm chân lên nhau và đạt tốc độ phát triển tối đa, 3 thành viên tuân thủ nghiêm ngặt quy trình làm việc sau:
+[ ] Bước 1 - Khóa API Contract trước (Lead Thuyên & Tân): Trước khi code bất kỳ tính năng nào, viết sẵn Swagger schema, DTOs và mẫu JSON phản hồi đưa lên Jira task.
+[ ] Bước 2 - Mock Data độc lập (Phú Frontend): Bạn Phú dùng Mock Service Worker (MSW) hoặc dummy JSON để dựng toàn bộ giao diện dựa trên API Contract mà không cần đợi Backend viết xong.
+[ ] Bước 3 - Backend song mã: Bạn Thuyên tập trung giải quyết Core DB, Ledger kho, CBM Calculator và PDF Generator; Bạn Tân tập trung xử lý Stripe, RFQ Negotiation và T/T Payment.
+[ ] Bước 4 - Ghép nối (Integration): Khi Backend hoàn thành endpoint, Phú chỉ cần đổi base URL từ mock sang real API để kiểm thử.
+[ ] Bước 5 - Review chéo (Peer Review): Mọi Pull Request phải có ít nhất 1 thành viên khác review và approve trên GitHub trước khi merge vào nhánh develop.
+8. KẾT LUẬN KIẾN TRÚC
+Nền tảng Xuất Khẩu Quốc Tế & TMĐT Hybrid (B2B & B2C) được xây dựng theo kiến trúc Modular Monolith hiện đại. Tính toàn vẹn của dữ liệu và quy trình thương mại quốc tế chuẩn mực chính là linh hồn của hệ thống:
+DATA INTEGRITY → CONCURRENCY SAFETY → INCOTERMS ENGINE → STRIPE 3D SECURE → CBM OPTIMIZATION → EXPORT PDF DOCS → CLEAN REACT UI

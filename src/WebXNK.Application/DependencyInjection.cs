@@ -35,6 +35,8 @@ public static class DependencyInjection
         // Commerce & B2B RFQ (EXP-39, EXP-45, EXP-54)
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IRfqService, RfqService>();
+        services.AddScoped<ITrackingService, TrackingService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
 
         return services;
     }

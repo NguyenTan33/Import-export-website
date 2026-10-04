@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RfqForm } from "@/components/portal/RfqForm";
 import { Product, RfqRequestDto } from "@/types";
-import { rfqApi, documentsApi } from "@/services/api";
+import { rfqApi, documentsApi, catalogApi } from "@/services/api";
 import { MessageSquare, Upload, CheckCircle2, ShieldCheck, Download, Eye } from "lucide-react";
 import { NegotiationChatModal } from "@/components/portal/NegotiationChatModal";
 import { PdfPreviewModal } from "@/components/admin/PdfPreviewModal";
@@ -135,11 +135,34 @@ export default function PortalPage() {
     },
   ]);
 
+  const [availableProducts, setAvailableProducts] = useState<Product[]>(SAMPLE_PRODUCTS);
+
+  useEffect(() => {
+    // 1. Tải danh sách RFQ thật của doanh nghiệp từ Backend
+    rfqApi.getMyRfqs().then((data) => {
+      if (data && Array.isArray(data) && data.length > 0) {
+        setRfqs(data);
+      }
+    });
+
+    // 2. Tải danh mục sản phẩm thật từ Backend
+    catalogApi.getProducts().then((data) => {
+      if (data && Array.isArray(data) && data.length > 0) {
+        setAvailableProducts(data);
+      }
+    });
+  }, []);
+
   const handleCreateRfq = async (payload: RfqRequestDto) => {
     setIsSubmitting(true);
     setSuccessMessage(null);
     try {
-      await rfqApi.createRfq(payload);
+      const created = await rfqApi.createRfq(payload);
+      if (created) {
+        rfqApi.getMyRfqs().then((data) => {
+          if (data && Array.isArray(data)) setRfqs(data);
+        });
+      }
     } catch {
       // Local fallback
     }
@@ -264,7 +287,7 @@ export default function PortalPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <RfqForm
-                availableProducts={SAMPLE_PRODUCTS}
+                availableProducts={availableProducts}
                 onSubmitRfq={handleCreateRfq}
                 isSubmitting={isSubmitting}
               />

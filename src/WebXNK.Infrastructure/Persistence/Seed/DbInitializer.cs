@@ -620,6 +620,66 @@ public static class DbInitializer
 
                 await context.RfqRequests.AddAsync(rfq);
                 await context.SaveChangesAsync();
+
+                // 4. Khởi tạo tiến trình theo dõi tàu biển (Shipment Milestones - EXP-72 đến EXP-75)
+                if (!await context.ShipmentMilestones.AnyAsync(m => m.TrackingNumber == "QTH-BL-2026-JP01"))
+                {
+                    var msList = new List<ShipmentMilestone>
+                    {
+                        new()
+                        {
+                            RfqId = rfq.Id,
+                            TrackingNumber = "QTH-BL-2026-JP01",
+                            VesselName = "ONE APUS",
+                            VoyageNumber = "088E",
+                            MilestoneStatus = "FACTORY_READY",
+                            ActualDate = DateTime.UtcNow.AddDays(-10),
+                            CurrentLocation = "Xưởng Quang Tấn Hoàng, KCN Sóng Thần, Bình Dương",
+                            Note = "Hoàn tất đóng thùng & Kiểm định tại Nhà máy đạt chuẩn JIS Nhật Bản.",
+                            CreatedAt = DateTime.UtcNow.AddDays(-10)
+                        },
+                        new()
+                        {
+                            RfqId = rfq.Id,
+                            TrackingNumber = "QTH-BL-2026-JP01",
+                            VesselName = "ONE APUS",
+                            VoyageNumber = "088E",
+                            MilestoneStatus = "CUSTOMS_CLEARED",
+                            ActualDate = DateTime.UtcNow.AddDays(-8),
+                            CurrentLocation = "Hải quan Cửa khẩu Cảng Cát Lái, TP.HCM",
+                            Note = "Thông quan Hải quan Cảng Cát Lái luồng Xanh điện tử (VNACCS/VCIS).",
+                            CreatedAt = DateTime.UtcNow.AddDays(-8)
+                        },
+                        new()
+                        {
+                            RfqId = rfq.Id,
+                            TrackingNumber = "QTH-BL-2026-JP01",
+                            VesselName = "ONE APUS",
+                            VoyageNumber = "088E",
+                            MilestoneStatus = "VESSEL_DEPARTED",
+                            ActualDate = DateTime.UtcNow.AddDays(-7),
+                            CurrentLocation = "Cầu cảng TC01, Tân Cảng Cát Lái",
+                            Note = "Tàu bốc hàng & Rời Cảng Cát Lái (POL) đi Tokyo Port.",
+                            CreatedAt = DateTime.UtcNow.AddDays(-7)
+                        },
+                        new()
+                        {
+                            RfqId = rfq.Id,
+                            TrackingNumber = "QTH-BL-2026-JP01",
+                            VesselName = "ONE APUS",
+                            VoyageNumber = "088E",
+                            MilestoneStatus = "ON_SEA",
+                            ActualDate = null,
+                            EstimatedArrivalDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)),
+                            CurrentLocation = "Tọa độ 21.85° N, 124.62° E (Vùng biển quốc tế)",
+                            Note = "Tàu đang hành trình trên biển tốc độ 18.4 knots. Dự kiến cập cảng Tokyo đúng tiến độ.",
+                            CreatedAt = DateTime.UtcNow.AddDays(-3)
+                        }
+                    };
+
+                    await context.ShipmentMilestones.AddRangeAsync(msList);
+                    await context.SaveChangesAsync();
+                }
             }
         }
     }

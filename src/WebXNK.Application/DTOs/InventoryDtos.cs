@@ -21,6 +21,17 @@ public class StockSummaryDto
     public List<WarehouseStockDto> WarehouseBreakdown { get; set; } = new();
 }
 
+public class InventoryBalanceDto
+{
+    public int WarehouseId { get; set; }
+    public string WarehouseName { get; set; } = string.Empty;
+    public string WarehouseCode { get; set; } = string.Empty;
+    public long ProductId { get; set; }
+    public string ProductSku { get; set; } = string.Empty;
+    public int AvailableQuantity { get; set; }
+    public int ReservedQuantity { get; set; }
+}
+
 public class WarehouseStockDto
 {
     public int WarehouseId { get; set; }

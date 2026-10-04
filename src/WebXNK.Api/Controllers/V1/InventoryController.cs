@@ -44,6 +44,29 @@ public class InventoryController : BaseApiController
     }
 
     /// <summary>
+    /// Đồng bộ API hợp đồng với Frontend: Tra cứu số dư tồn kho theo sản phẩm (EXP-77, EXP-78)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("balance/{productId:long}")]
+    [ProducesResponseType(typeof(ApiResponse<List<InventoryBalanceDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStockBalance(long productId)
+    {
+        var summary = await _inventoryService.GetStockSummaryAsync(productId);
+        var list = summary.WarehouseBreakdown.Select(w => new InventoryBalanceDto
+        {
+            WarehouseId = w.WarehouseId,
+            WarehouseCode = w.WarehouseCode,
+            WarehouseName = w.WarehouseName,
+            ProductId = productId,
+            ProductSku = summary.BaseSku,
+            AvailableQuantity = Math.Max(0, w.CurrentStock - summary.TotalReservedStock),
+            ReservedQuantity = summary.TotalReservedStock
+        }).ToList();
+
+        return Ok(ApiResponse<List<InventoryBalanceDto>>.Ok(list, "Lấy danh sách số dư tồn kho thành công."));
+    }
+
+    /// <summary>
     /// Ghi nhận bút toán nhập/xuất kho vào sổ cái bất biến (Inventory Ledger) - Yêu cầu Admin / Sales / Kho
     /// </summary>
     [Authorize(Roles = "Admin_Super,Sales_Executive,Warehouse_Manager")]

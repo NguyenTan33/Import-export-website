@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { VesselTrackingTimeline, ShipmentData } from "@/components/tracking/VesselTrackingTimeline";
 import { useLanguage } from "@/context/LanguageContext";
+import { trackingApi } from "@/services/api";
 
 const SAMPLE_SHIPMENTS: Record<string, ShipmentData> = {
   "QTH-BL-2026-JP01": {
@@ -330,10 +331,35 @@ function TrackingContent() {
   const [activeShipment, setActiveShipment] = useState<ShipmentData | null>(initialShipment);
   const [notFound, setNotFound] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  useEffect(() => {
+    const code = queryParam || "QTH-BL-2026-JP01";
+    trackingApi.getShipment(code).then((data) => {
+      if (data) {
+        setActiveShipment(data as ShipmentData);
+        setNotFound(false);
+      } else if (SAMPLE_SHIPMENTS[code]) {
+        setActiveShipment(SAMPLE_SHIPMENTS[code]);
+        setNotFound(false);
+      }
+    });
+  }, [queryParam]);
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchCode.trim().toUpperCase();
     if (!query) return;
+
+    try {
+      const realData = await trackingApi.getShipment(query);
+      if (realData) {
+        setActiveShipment(realData as ShipmentData);
+        setNotFound(false);
+        router.push(`/tracking?q=${realData.blNumber}`);
+        return;
+      }
+    } catch {
+      // fallback to sample shipments
+    }
 
     let found = SAMPLE_SHIPMENTS[query];
     if (!found) {
@@ -357,8 +383,19 @@ function TrackingContent() {
     }
   };
 
-  const selectSample = (code: string) => {
+  const selectSample = async (code: string) => {
     setSearchCode(code);
+    try {
+      const realData = await trackingApi.getShipment(code);
+      if (realData) {
+        setActiveShipment(realData as ShipmentData);
+        setNotFound(false);
+        router.push(`/tracking?q=${code}`);
+        return;
+      }
+    } catch {
+      // fallback
+    }
     setActiveShipment(SAMPLE_SHIPMENTS[code]);
     setNotFound(false);
     router.push(`/tracking?q=${code}`);

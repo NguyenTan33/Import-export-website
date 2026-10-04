@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Globe2,
   PieChart,
@@ -10,28 +10,40 @@ import {
   Container,
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
+import { adminApi } from "@/services/api";
 
 export const ExportAnalyticsDashboard: React.FC = () => {
   const { formatPrice } = useCurrency();
 
-  const totalB2bUsd = 268400;
-  const totalB2cUsd = 61350;
+  const [totalB2bUsd, setTotalB2bUsd] = useState(268400);
+  const [totalB2cUsd, setTotalB2cUsd] = useState(61350);
   const grandTotalUsd = totalB2bUsd + totalB2cUsd;
 
-  const markets = [
+  const [markets, setMarkets] = useState([
     { country: "Nhật Bản (Japan)", port: "Tokyo / Yokohama", flag: "🇯🇵", revenueUsd: 112500, percent: 34.1, containers: "8x40HC", growth: "+24.5%" },
     { country: "Hoa Kỳ (USA)", port: "Los Angeles / Long Beach", flag: "🇺🇸", revenueUsd: 98200, percent: 29.8, containers: "6x40HC", growth: "+18.2%" },
     { country: "Châu Âu (EU)", port: "Rotterdam / Hamburg", flag: "🇪🇺", revenueUsd: 74300, percent: 22.5, containers: "5x40HC", growth: "+12.0%" },
     { country: "Hàn Quốc (Korea)", port: "Busan Port", flag: "🇰🇷", revenueUsd: 44750, percent: 13.6, containers: "3x40GP", growth: "+8.4%" },
-  ];
+  ]);
 
-  const funnelStages = [
+  const [funnelStages, setFunnelStages] = useState([
     { name: "1. Yêu cầu báo giá gửi đến (Submitted)", count: 48, percent: 100, color: "bg-neutral-800" },
     { name: "2. Đã tính toán CBM & Gửi báo giá (Quoted)", count: 40, percent: 83.3, color: "bg-[#0E4B94]" },
     { name: "3. Đàm phán giá qua SignalR (Negotiated)", count: 28, percent: 58.3, color: "bg-blue-600" },
     { name: "4. Ký Proforma Invoice & Hợp đồng (PI Signed)", count: 21, percent: 43.8, color: "bg-emerald-600" },
     { name: "5. Nộp Ủy nhiệm chi T/T & Vào sản xuất (Deposit Paid)", count: 16, percent: 33.3, color: "bg-emerald-800" },
-  ];
+  ]);
+
+  useEffect(() => {
+    adminApi.getAnalytics().then((data) => {
+      if (data) {
+        if (data.totalB2bUsd) setTotalB2bUsd(data.totalB2bUsd);
+        if (data.totalB2cUsd) setTotalB2cUsd(data.totalB2cUsd);
+        if (data.topMarkets && data.topMarkets.length > 0) setMarkets(data.topMarkets);
+        if (data.pipelineFunnel && data.pipelineFunnel.length > 0) setFunnelStages(data.pipelineFunnel);
+      }
+    });
+  }, []);
 
   return (
     <div className="border border-black bg-white p-6 space-y-6">

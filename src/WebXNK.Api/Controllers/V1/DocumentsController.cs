@@ -38,6 +38,19 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
+    /// Tải trực tiếp file PDF Proforma Invoice chuẩn ICC (hỗ trợ preview và download từ frontend)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("proforma-invoice/{rfqId:long}")]
+    [HttpGet("proforma-invoice/{rfqId:long}/download")]
+    public async Task<IActionResult> DownloadProformaInvoice(long rfqId, CancellationToken cancellationToken)
+    {
+        var result = await _documentService.GenerateProformaInvoiceAsync(rfqId, 1, cancellationToken);
+        var (stream, contentType, fileName) = await _documentService.GetDocumentFileAsync(result.DocumentId, cancellationToken);
+        return File(stream, contentType, fileName);
+    }
+
+    /// <summary>
     /// Tự động sinh Hóa đơn thương mại chính thức (Commercial Invoice) chuẩn ICC xuất khẩu (EXP-69)
     /// </summary>
     /// <param name="rfqId">ID đơn chào giá xuất khẩu (RFQ)</param>
@@ -53,6 +66,19 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
+    /// Tải trực tiếp file PDF Commercial Invoice chuẩn ICC
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("commercial-invoice/{rfqId:long}")]
+    [HttpGet("commercial-invoice/{rfqId:long}/download")]
+    public async Task<IActionResult> DownloadCommercialInvoice(long rfqId, CancellationToken cancellationToken)
+    {
+        var result = await _documentService.GenerateCommercialInvoiceAsync(rfqId, 1, cancellationToken);
+        var (stream, contentType, fileName) = await _documentService.GetDocumentFileAsync(result.DocumentId, cancellationToken);
+        return File(stream, contentType, fileName);
+    }
+
+    /// <summary>
     /// Tự động sinh Phiếu đóng gói hàng xuất khẩu (Packing List) chuẩn ICC kèm CBM & Net/Gross Weight (EXP-69)
     /// </summary>
     /// <param name="rfqId">ID đơn chào giá xuất khẩu (RFQ)</param>
@@ -65,6 +91,19 @@ public class DocumentsController : BaseApiController
         var userId = GetCurrentUserId();
         var result = await _documentService.GeneratePackingListAsync(rfqId, userId, cancellationToken);
         return Ok(ApiResponse<DocumentGenerationResultDto>.Ok(result, "Phát hành Packing List thành công."));
+    }
+
+    /// <summary>
+    /// Tải trực tiếp file PDF Packing List chuẩn ICC
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("packing-list/{rfqId:long}")]
+    [HttpGet("packing-list/{rfqId:long}/download")]
+    public async Task<IActionResult> DownloadPackingList(long rfqId, CancellationToken cancellationToken)
+    {
+        var result = await _documentService.GeneratePackingListAsync(rfqId, 1, cancellationToken);
+        var (stream, contentType, fileName) = await _documentService.GetDocumentFileAsync(result.DocumentId, cancellationToken);
+        return File(stream, contentType, fileName);
     }
 
     /// <summary>

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Warehouse, InventoryBalance } from "@/types";
 import { Warehouse as WhIcon, Clock, CheckCircle } from "lucide-react";
+import { inventoryApi } from "@/services/api";
 
 export const WarehouseInventoryMonitor: React.FC = () => {
-  const [warehouses] = useState<Warehouse[]>([
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([
     {
       id: 1,
       code: "WH-BINHDUONG",
@@ -24,7 +25,7 @@ export const WarehouseInventoryMonitor: React.FC = () => {
     },
   ]);
 
-  const [balances] = useState<InventoryBalance[]>([
+  const [balances, setBalances] = useState<InventoryBalance[]>([
     {
       warehouseId: 1,
       warehouseCode: "WH-BINHDUONG",
@@ -62,6 +63,20 @@ export const WarehouseInventoryMonitor: React.FC = () => {
       reservedQuantity: 1440,
     },
   ]);
+
+  useEffect(() => {
+    inventoryApi.getWarehouses().then((res) => {
+      if (res && Array.isArray(res) && res.length > 0) {
+        setWarehouses(res);
+      }
+    });
+
+    inventoryApi.getStockBalance(1).then((res) => {
+      if (res && Array.isArray(res) && res.length > 0) {
+        setBalances(res);
+      }
+    });
+  }, []);
 
   return (
     <div className="border border-black bg-white p-6 space-y-6">

@@ -25,9 +25,14 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor
+// Response Interceptor: Unwrap ApiResponse<T> envelope automatically
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data && typeof response.data === "object" && "data" in response.data && "success" in response.data) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   (error) => {
     if (error.response && error.response.status === 401) {
       if (typeof window !== "undefined") {
@@ -166,21 +171,53 @@ export const rfqApi = {
 // 5. Document Services (EXP-56, EXP-69 - QuestPDF Engine)
 export const documentsApi = {
   downloadProformaInvoice: async (rfqId: number) => {
-    const response = await apiClient.get(`/documents/proforma-invoice/${rfqId}`, {
+    const response = await apiClient.get(`/documents/proforma-invoice/${rfqId}/download`, {
       responseType: "blob",
     });
-    return response.data;
+    return response.data as Blob;
   },
   downloadCommercialInvoice: async (orderId: number) => {
-    const response = await apiClient.get(`/documents/commercial-invoice/${orderId}`, {
+    const response = await apiClient.get(`/documents/commercial-invoice/${orderId}/download`, {
       responseType: "blob",
     });
-    return response.data;
+    return response.data as Blob;
   },
   downloadPackingList: async (orderId: number) => {
-    const response = await apiClient.get(`/documents/packing-list/${orderId}`, {
+    const response = await apiClient.get(`/documents/packing-list/${orderId}/download`, {
       responseType: "blob",
     });
-    return response.data;
+    return response.data as Blob;
+  },
+};
+
+// 6. Tracking & Vessel Milestones Services (EXP-72 to EXP-75)
+export const trackingApi = {
+  getShipment: async (blOrBookingNumber: string) => {
+    try {
+      const response = await apiClient.get(`/tracking/${encodeURIComponent(blOrBookingNumber)}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+  getActiveShipments: async () => {
+    try {
+      const response = await apiClient.get("/tracking/active");
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+};
+
+// 7. Admin ERP & BI Analytics Services (EXP-90 to EXP-93)
+export const adminApi = {
+  getAnalytics: async () => {
+    try {
+      const response = await apiClient.get("/admin/analytics");
+      return response.data;
+    } catch {
+      return null;
+    }
   },
 };

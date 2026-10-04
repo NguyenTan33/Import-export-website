@@ -25,6 +25,8 @@ public class MultiItemCargoItemDto
 {
     public long? ProductId { get; set; }
     public string ItemName { get; set; } = string.Empty;
+    public string? ProductName { get; set; } // Hỗ trợ frontend mapping
+    public int Quantity { get; set; } // Số lượng chiếc/hộp
     public decimal CartonLengthCm { get; set; }
     public decimal CartonWidthCm { get; set; }
     public decimal CartonHeightCm { get; set; }
@@ -78,6 +80,11 @@ public class CalculateMultiItemCbmResponseDto
     public decimal TotalGrossWeightKg { get; set; }
     public string SuggestedShipmentMode { get; set; } = string.Empty; // FCL or LCL
     public string PrimaryRecommendedContainer { get; set; } = string.Empty;
+    public string SuggestedContainerType => PrimaryRecommendedContainer;
+    public decimal ContainerCapacityCbm { get; set; }
+    public decimal VolumeUtilizationPercentage { get; set; }
+    public decimal WeightLimitKg { get; set; }
+    public decimal WeightUtilizationPercentage { get; set; }
     public List<ContainerPlanDto> ContainerPlan { get; set; } = new();
     public PalletSummaryDto? PalletSummary { get; set; }
     public List<MultiItemCargoBreakdownDto> ItemBreakdowns { get; set; } = new();

@@ -60,5 +60,6 @@ public class ShipmentMilestone : BaseEntity<long>
     public DateTime? ActualDate { get; set; }
     public string? CurrentLocation { get; set; }
     public string? Note { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
