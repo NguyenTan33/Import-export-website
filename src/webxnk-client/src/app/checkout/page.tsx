@@ -58,8 +58,9 @@ function CheckoutContent() {
   const productId = Number(searchParams?.get("productId") || "1");
   const initialQty = Math.max(1, Number(searchParams?.get("quantity") || "1"));
 
-  const [product, setProduct] = useState<Product>(FALLBACK_PRODUCT);
+  const [product, setProduct] = useState<Product | null>(null);
   const [quantity] = useState<number>(initialQty);
+  const [loading, setLoading] = useState<boolean>(true);
   const { formatPrice, currency } = useCurrency();
   const { t, language } = useLanguage();
   const isVi = language === "vi";
@@ -68,12 +69,30 @@ function CheckoutContent() {
     catalogApi
       .getProductById(productId)
       .then((res) => {
-        if (res) setProduct(res);
+        setProduct(res || FALLBACK_PRODUCT);
       })
-      .catch(() => {});
+      .catch(() => {
+        setProduct(FALLBACK_PRODUCT);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [productId]);
 
-  const currentProduct = product;
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#0E4B94] border-r-transparent"></div>
+        <p className="mt-4 font-mono text-sm text-neutral-600">
+          {isVi
+            ? "Đang tải thông tin đơn hàng thanh toán quốc tế..."
+            : "Loading checkout and inventory reservation details..."}
+        </p>
+      </div>
+    );
+  }
+
+  const currentProduct = product || FALLBACK_PRODUCT;
   const productName =
     currentProduct.translations?.find((tr) => tr.languageCode === language)?.name ||
     currentProduct.translations?.[0]?.name ||

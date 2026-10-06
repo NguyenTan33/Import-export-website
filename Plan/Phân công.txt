@@ -1,0 +1,51 @@
+1. ĐẶNG MINH THUYÊN (A) - Tech Lead / Core Backend & Logistics / Docs
+Mã Jira phụ trách: EXP-CORE, EXP-LOGISTICS, EXP-DOCS (Phase 0, 1, 3, 10, 12, 13, 15, 16, 23).
+Phạm vi code cụ thể:
+WebXNK.Domain: Quản lý cấu trúc Entities, các quan hệ bảng trong CSDL.
+WebXNK.Infrastructure:
+Quản lý WebXnkDbContext và EntityConfigurations.
+Tích hợp QuestPDF để tự động sinh file PDF: Hóa đơn chiếu lệ (Proforma Invoice), Hóa đơn thương mại (Commercial Invoice), Phiếu đóng gói (Packing List) chuẩn ICC (EXP-56, EXP-69).
+Tích hợp AWS S3 lưu trữ tài liệu xuất nhập khẩu (EXP-59).
+WebXNK.Application:
+Hoàn thiện động cơ CBM & Container Packing Optimization Engine (tính toán container 20ft/40ft - EXP-64, EXP-65).
+Xây dựng Multi-Warehouse & Inventory Ledger (quản lý kho Cát Lái, kho Bình Dương; ghi nhận bút toán nhập/xuất kho; cơ chế giữ hàng tạm thời Reservation 30 phút - EXP-76 đến EXP-79).
+WebXNK.Api:
+Viết LogisticsController, InventoryController, DocumentsController.
+Cấu hình DevOps Dockerfile và GitHub Actions CI/CD (EXP-105, EXP-107).
+2. NGUYỄN MINH TÂN (B) - Backend Commerce & Payments / B2B RFQ
+Mã Jira phụ trách: EXP-B2B, EXP-B2C, EXP-PAYMENT (Phase 2, 4, 6, 7, 8, 9, 11, 14, 20).
+Phạm vi code cụ thể:
+WebXNK.Application:
+Hoàn thiện Dynamic Tiered Pricing & MOQ Engine (tính giá sỉ theo bậc số lượng - EXP-28 đến EXP-31).
+Xây dựng B2B RFQ Negotiation Engine (Quy trình đàm phán báo giá nhiều vòng: Submitted 
+→
+→ Quoted 
+→
+→ Accepted 
+→
+→ Deposit Paid - EXP-45 đến EXP-54).
+Động cơ Incoterms 2020 (tính toán cước biển Ocean Freight, bảo hiểm Marine Insurance cho FOB, CIF, EXW - EXP-47, EXP-51).
+WebXNK.Infrastructure:
+Tích hợp cổng thanh toán Stripe SDK & Webhook Handler cho khách B2C mua lẻ (xử lý Idempotency chống lặp thanh toán - EXP-40 đến EXP-44).
+Xử lý luồng thẩm định Ủy nhiệm chi T/T Wire Transfer / Swift MT103 cho doanh nghiệp B2B đặt cọc 30% (EXP-60 đến EXP-63).
+Viết BackgroundService tự động cập nhật tỷ giá FX từ Open Exchange Rates mỗi 6 tiếng (EXP-19).
+WebXNK.Api:
+Viết RfqController, OrdersController, PaymentsController.
+Xây dựng WebSocket RfqNegotiationHub (SignalR) để bắn thông báo báo giá realtime giữa Sales và Khách nhập khẩu (EXP-53).
+3. VÕ VĂN PHÚ (C) - Frontend Lead & Full-Stack UI/UX
+Mã Jira phụ trách: EXP-FE-STORE, EXP-FE-PORTAL, EXP-FE-ADMIN (Phase 5, 6, 8, 12, 14, 18, 19).
+Phạm vi code cụ thể (Dự án React 19 / Next.js 14 App Router):
+Storefront B2C (Khách lẻ):
+Giao diện Catalog lọc theo Category, khoảng giá, mã HS Code.
+Trang chi tiết sản phẩm (PDP): Chuyển đổi hiển thị B2C vs B2B, bảng giá bậc thang trực quan.
+
+Giỏ hàng và Form Checkout tích hợp Stripe Elements chuẩn 3D Secure quốc tế (EXP-41).
+B2B Portal (Nhà nhập khẩu):
+Form tạo RFQ: Chọn số lượng lớn, chọn Incoterms (FOB, CIF), chọn cảng đi/cảng đến (POL/POD).
+Khung chat đàm phán báo giá realtime (kết nối SignalR với bạn Tân).
+Giao diện tải file PDF Ủy nhiệm chi T/T (Bank Slip).
+Interactive CBM & 3D Container UI:
+Giao diện trực quan hóa không gian container 20ft/40ft (kết nối API CBM của bạn Thuyên - EXP-67).
+Admin ERP Dashboard:
+Màn hình duyệt doanh nghiệp B2B, quản trị kho hàng đa điểm, theo dõi tiến độ tàu biển (Milestones timeline).
+Đa ngôn ngữ (i18n) & SEO: Chuyển đổi EN - VI toàn trang, cấu hình thẻ hreflang và Schema.org (EXP-86 đến EXP-89).

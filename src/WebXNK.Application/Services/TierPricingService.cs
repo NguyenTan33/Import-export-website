@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
@@ -8,10 +9,12 @@ namespace WebXNK.Application.Services;
 public class TierPricingService : ITierPricingService
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMemoryCache? _cache;
 
-    public TierPricingService(IApplicationDbContext context)
+    public TierPricingService(IApplicationDbContext context, IMemoryCache? cache = null)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<CalculateTierPriceResponseDto> CalculatePriceAsync(CalculateTierPriceRequestDto request)
@@ -58,16 +61,25 @@ public class TierPricingService : ITierPricingService
 
         if (targetCurrency != "USD")
         {
-            var latestRate = await _context.ExchangeRates
-                .AsNoTracking()
-                .Where(r => r.FromCurrency == "USD" && r.ToCurrency == targetCurrency)
-                .OrderByDescending(r => r.FetchedAt)
-                .Select(r => r.Rate)
-                .FirstOrDefaultAsync();
-
-            if (latestRate > 0)
+            var cacheKey = $"ExchangeRate_USD_{targetCurrency}";
+            if (_cache != null && _cache.TryGetValue(cacheKey, out decimal cachedRate) && cachedRate > 0)
             {
-                exchangeRate = latestRate;
+                exchangeRate = cachedRate;
+            }
+            else
+            {
+                var latestRate = await _context.ExchangeRates
+                    .AsNoTracking()
+                    .Where(r => r.FromCurrency == "USD" && r.ToCurrency == targetCurrency)
+                    .OrderByDescending(r => r.FetchedAt)
+                    .Select(r => r.Rate)
+                    .FirstOrDefaultAsync();
+
+                if (latestRate > 0)
+                {
+                    exchangeRate = latestRate;
+                    _cache?.Set(cacheKey, latestRate, TimeSpan.FromMinutes(10));
+                }
             }
         }
 
