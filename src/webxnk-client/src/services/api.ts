@@ -25,15 +25,57 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor
+// Response Interceptor: Auto-unwrap ApiResponse<T> and port failover
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response) => {
+    // If response wrapped in standard ApiResponse<T>
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "statusCode" in response.data &&
+      "data" in response.data
+    ) {
+      const payload = response.data.data;
+      // If paginated result containing items array
+      if (payload && typeof payload === "object" && Array.isArray(payload.items)) {
+        return {
+          ...response,
+          data: payload.items,
+          pagination: {
+            totalCount: payload.totalCount,
+            pageIndex: payload.pageIndex,
+            pageSize: payload.pageSize,
+            totalPages: payload.totalPages,
+          },
+        };
+      }
+      return { ...response, data: payload };
+    }
+    return response;
+  },
+  async (error) => {
     if (error.response && error.response.status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("webxnk_token");
       }
     }
+
+    // Smart Port Failover: If port 5000 fails to connect, auto-retry on port 5288 and vice versa
+    const config = error.config;
+    if (config && !config._retry) {
+      const currentUrl = config.baseURL || API_BASE_URL;
+      const isNetworkError = error.code === "ERR_NETWORK" || error.code === "ECONNREFUSED" || error.message?.includes("Network Error");
+      if (isNetworkError && currentUrl.includes("localhost")) {
+        config._retry = true;
+        const alternativeUrl = currentUrl.includes("5000")
+          ? currentUrl.replace("5000", "5288")
+          : currentUrl.replace("5288", "5000");
+        config.baseURL = alternativeUrl;
+        apiClient.defaults.baseURL = alternativeUrl;
+        return apiClient(config);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -74,22 +116,40 @@ export const clientCache = {
 // 1. Catalog & Product Services
 export const catalogApi = {
   getProducts: async (categoryId?: number, keyword?: string): Promise<Product[]> => {
+    const cacheKey = `products_${categoryId ?? "all"}_${keyword ?? "none"}`;
+    const cached = clientCache.get<Product[]>(cacheKey, 60 * 1000); // 60s cache
+    if (cached) return cached;
+
     try {
       const response = await apiClient.get<Product[]>("/products", {
         params: { categoryId, keyword },
       });
-      return response.data;
+      const items = Array.isArray(response.data) ? response.data : [];
+      if (items.length > 0) {
+        clientCache.set(cacheKey, items);
+      }
+      return items;
     } catch {
       return [];
     }
   },
   getProductById: async (id: number): Promise<Product | null> => {
+    const cacheKey = `product_${id}`;
+    const cached = clientCache.get<Product>(cacheKey, 3 * 60 * 1000); // 3m cache
+    if (cached) return cached;
+
     try {
       const response = await apiClient.get<Product>(`/products/${id}`);
+      if (response.data) {
+        clientCache.set(cacheKey, response.data);
+      }
       return response.data;
     } catch {
       return null;
     }
+  },
+  getCachedProductById: (id: number): Product | null => {
+    return clientCache.get<Product>(`product_${id}`, 5 * 60 * 1000);
   },
   getCategories: async (): Promise<Category[]> => {
     const cacheKey = "catalog_categories";
@@ -97,8 +157,11 @@ export const catalogApi = {
     if (cached) return cached;
     try {
       const response = await apiClient.get<Category[]>("/categories");
-      clientCache.set(cacheKey, response.data);
-      return response.data;
+      const list = Array.isArray(response.data) ? response.data : [];
+      if (list.length > 0) {
+        clientCache.set(cacheKey, list);
+      }
+      return list;
     } catch {
       return [];
     }
@@ -127,9 +190,16 @@ export const inventoryApi = {
     const cacheKey = "inventory_warehouses";
     const cached = clientCache.get<Warehouse[]>(cacheKey, 10 * 60 * 1000);
     if (cached) return cached;
-    const response = await apiClient.get<Warehouse[]>("/inventory/warehouses");
-    clientCache.set(cacheKey, response.data);
-    return response.data;
+    try {
+      const response = await apiClient.get<Warehouse[]>("/inventory/warehouses");
+      const list = Array.isArray(response.data) ? response.data : [];
+      if (list.length > 0) {
+        clientCache.set(cacheKey, list);
+      }
+      return list;
+    } catch {
+      return [];
+    }
   },
   getStockBalance: async (productId: number, warehouseId?: number): Promise<InventoryBalance[]> => {
     const response = await apiClient.get<InventoryBalance[]>(`/inventory/balance/${productId}`, {

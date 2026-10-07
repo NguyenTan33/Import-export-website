@@ -338,13 +338,18 @@ export default function ProductDetailPage() {
   const isVi = language === "vi";
 
   useEffect(() => {
-    const currentFallback = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
-    setProduct(currentFallback);
+    const cached = catalogApi.getCachedProductById(productId);
+    if (cached) {
+      setProduct(cached);
+    } else {
+      const currentFallback = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
+      setProduct(currentFallback);
+    }
 
     catalogApi
       .getProductById(productId)
       .then((res) => {
-        if (res) setProduct(res);
+        if (res && res.translations) setProduct(res);
       })
       .catch(() => {});
   }, [productId]);

@@ -279,12 +279,15 @@ export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    catalogApi.getCategories().then((res) => {
-      if (res && res.length > 0) setCategories(res);
-    });
-    catalogApi.getProducts().then((res) => {
-      if (res && res.length > 0) setProducts(res);
-    });
+    Promise.all([
+      catalogApi.getCategories(),
+      catalogApi.getProducts()
+    ])
+      .then(([cats, prods]) => {
+        if (cats && cats.length > 0) setCategories(cats);
+        if (prods && prods.length > 0) setProducts(prods);
+      })
+      .catch(() => {});
   }, []);
 
   const filteredProducts = products.filter((p) => {

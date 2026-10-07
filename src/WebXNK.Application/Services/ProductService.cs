@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
@@ -9,58 +10,74 @@ namespace WebXNK.Application.Services;
 public class ProductService : IProductService
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMemoryCache? _cache;
 
-    public ProductService(IApplicationDbContext context)
+    public ProductService(IApplicationDbContext context, IMemoryCache? cache = null)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<PaginatedResult<ProductSummaryDto>> GetProductsAsync(ProductFilterRequestDto filter)
     {
         var lang = string.IsNullOrWhiteSpace(filter.LanguageCode) ? "vi" : filter.LanguageCode.ToLowerInvariant();
 
-        var query = _context.Products
+        bool isDefaultCatalog = !filter.CategoryId.HasValue 
+            && string.IsNullOrWhiteSpace(filter.HsCode) 
+            && !filter.MinPrice.HasValue 
+            && !filter.MaxPrice.HasValue 
+            && string.IsNullOrWhiteSpace(filter.SearchKeyword) 
+            && filter.PageIndex == 1;
+
+        var cacheKey = $"Products_Catalog_{lang}_{filter.PageSize}";
+        if (isDefaultCatalog && _cache != null && _cache.TryGetValue(cacheKey, out PaginatedResult<ProductSummaryDto>? cachedCatalog) && cachedCatalog != null)
+        {
+            return cachedCatalog;
+        }
+
+        var baseQuery = _context.Products
             .AsNoTracking()
-            .Include(p => p.Category)
-                .ThenInclude(c => c.Translations)
-            .Include(p => p.Translations)
-            .Include(p => p.ExportPackaging)
-            .Include(p => p.PriceTiers)
             .Where(p => p.IsActive);
 
         // 1. Lọc theo Danh mục
         if (filter.CategoryId.HasValue)
         {
-            query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
+            baseQuery = baseQuery.Where(p => p.CategoryId == filter.CategoryId.Value);
         }
 
         // 2. Lọc theo mã HS Code
         if (!string.IsNullOrWhiteSpace(filter.HsCode))
         {
-            query = query.Where(p => p.HsCode.Contains(filter.HsCode.Trim()));
+            baseQuery = baseQuery.Where(p => p.HsCode.Contains(filter.HsCode.Trim()));
         }
 
         // 3. Lọc theo khoảng giá
         if (filter.MinPrice.HasValue)
         {
-            query = query.Where(p => p.DefaultRetailPriceUsd >= filter.MinPrice.Value);
+            baseQuery = baseQuery.Where(p => p.DefaultRetailPriceUsd >= filter.MinPrice.Value);
         }
         if (filter.MaxPrice.HasValue)
         {
-            query = query.Where(p => p.DefaultRetailPriceUsd <= filter.MaxPrice.Value);
+            baseQuery = baseQuery.Where(p => p.DefaultRetailPriceUsd <= filter.MaxPrice.Value);
         }
 
         // 4. Tìm kiếm từ khóa (SKU hoặc Tên sản phẩm)
         if (!string.IsNullOrWhiteSpace(filter.SearchKeyword))
         {
             var keyword = filter.SearchKeyword.Trim();
-            query = query.Where(p => p.BaseSku.Contains(keyword) || 
-                                     p.Translations.Any(t => t.Name.Contains(keyword)));
+            baseQuery = baseQuery.Where(p => p.BaseSku.Contains(keyword) || 
+                                             p.Translations.Any(t => t.Name.Contains(keyword)));
         }
 
-        var totalCount = await query.CountAsync();
+        // Tối ưu: Đếm trên baseQuery đơn giản (không JOIN 4 bảng không cần thiết)
+        var totalCount = await baseQuery.CountAsync();
 
-        var items = await query
+        var items = await baseQuery
+            .Include(p => p.Category)
+                .ThenInclude(c => c.Translations)
+            .Include(p => p.Translations)
+            .Include(p => p.ExportPackaging)
+            .Include(p => p.PriceTiers)
             .OrderBy(p => p.Id)
             .Skip((filter.PageIndex - 1) * filter.PageSize)
             .Take(filter.PageSize)
@@ -96,12 +113,24 @@ public class ProductService : IProductService
             };
         }).ToList();
 
-        return PaginatedResult<ProductSummaryDto>.Create(dtos, totalCount, filter.PageIndex, filter.PageSize);
+        var paginatedResult = PaginatedResult<ProductSummaryDto>.Create(dtos, totalCount, filter.PageIndex, filter.PageSize);
+        if (isDefaultCatalog && _cache != null)
+        {
+            _cache.Set(cacheKey, paginatedResult, TimeSpan.FromMinutes(5));
+        }
+
+        return paginatedResult;
     }
 
     public async Task<ProductDetailDto?> GetProductByIdAsync(long id, string languageCode = "vi")
     {
         var lang = string.IsNullOrWhiteSpace(languageCode) ? "vi" : languageCode.ToLowerInvariant();
+
+        var cacheKey = $"Product_Detail_{id}_{lang}";
+        if (_cache != null && _cache.TryGetValue(cacheKey, out ProductDetailDto? cachedDetail) && cachedDetail != null)
+        {
+            return cachedDetail;
+        }
 
         var p = await _context.Products
             .AsNoTracking()
@@ -122,7 +151,7 @@ public class ProductService : IProductService
                         ?? p.Category.Translations.FirstOrDefault(t => t.LanguageCode == "en")
                         ?? p.Category.Translations.FirstOrDefault();
 
-        return new ProductDetailDto
+        var result = new ProductDetailDto
         {
             Id = p.Id,
             BaseSku = p.BaseSku,
@@ -157,6 +186,9 @@ public class ProductService : IProductService
                 DiscountPercentage = t.DiscountPercentage
             }).ToList()
         };
+
+        _cache?.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+        return result;
     }
 
     public async Task<ProductDetailDto> CreateProductAsync(CreateProductRequestDto request, long createdByUserId)

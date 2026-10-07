@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
@@ -9,15 +10,23 @@ namespace WebXNK.Application.Services;
 public class InventoryService : IInventoryService
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMemoryCache? _cache;
 
-    public InventoryService(IApplicationDbContext context)
+    public InventoryService(IApplicationDbContext context, IMemoryCache? cache = null)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<WarehouseDto>> GetWarehousesAsync()
     {
-        return await _context.Warehouses
+        const string cacheKey = "Inventory_Warehouses_All";
+        if (_cache != null && _cache.TryGetValue(cacheKey, out List<WarehouseDto>? cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var list = await _context.Warehouses
             .AsNoTracking()
             .Where(w => w.IsActive)
             .OrderBy(w => w.Id)
@@ -31,6 +40,9 @@ public class InventoryService : IInventoryService
                 IsActive = w.IsActive
             })
             .ToListAsync();
+
+        _cache?.Set(cacheKey, list, TimeSpan.FromMinutes(30));
+        return list;
     }
 
     public async Task<StockSummaryDto> GetStockSummaryAsync(long productId)
@@ -57,10 +69,8 @@ public class InventoryService : IInventoryService
             })
             .ToListAsync();
 
-        var warehouses = await _context.Warehouses
-            .AsNoTracking()
-            .Where(w => w.IsActive)
-            .ToListAsync();
+        // Tối ưu: Lấy danh sách kho bãi từ bộ nhớ cache thay vì truy vấn lại database
+        var warehouses = await GetWarehousesAsync();
 
         var warehouseBreakdowns = warehouses.Select(w =>
         {
