@@ -23,25 +23,32 @@ public class ExpiredReservationCleanupWorker : BackgroundService
     {
         _logger.LogInformation("ExpiredReservationCleanupWorker đã bắt đầu chạy ngầm (chu kỳ quét: {Interval} phút)...", _checkInterval.TotalMinutes);
 
-        using var timer = new PeriodicTimer(_checkInterval);
-
-        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+        try
         {
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+            using var timer = new PeriodicTimer(_checkInterval);
 
-                var cleanedCount = await inventoryService.CleanupExpiredReservationsAsync();
-                if (cleanedCount > 0)
+            while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                try
                 {
-                    _logger.LogInformation("Đã tự động hoàn trả {Count} phiếu giữ hàng (Reservation) quá hạn 30 phút về tồn kho khả dụng.", cleanedCount);
+                    using var scope = _serviceProvider.CreateScope();
+                    var inventoryService = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+
+                    var cleanedCount = await inventoryService.CleanupExpiredReservationsAsync();
+                    if (cleanedCount > 0)
+                    {
+                        _logger.LogInformation("Đã tự động hoàn trả {Count} phiếu giữ hàng (Reservation) quá hạn 30 phút về tồn kho khả dụng.", cleanedCount);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Lỗi khi quét dọn các phiếu giữ hàng quá hạn trong ExpiredReservationCleanupWorker.");
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi quét dọn các phiếu giữ hàng quá hạn trong ExpiredReservationCleanupWorker.");
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ExpiredReservationCleanupWorker đã dừng lại an toàn (Graceful Shutdown).");
         }
     }
 }

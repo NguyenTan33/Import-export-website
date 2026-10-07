@@ -19,6 +19,7 @@ public class CategoriesController : BaseApiController
     /// </summary>
     /// <param name="lang">Mã ngôn ngữ: 'vi' (mặc định) hoặc 'en'</param>
     [HttpGet]
+    [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<List<CategoryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllCategories([FromHeader(Name = "X-Language")] string lang = "vi")
     {

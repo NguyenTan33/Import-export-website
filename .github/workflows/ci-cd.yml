@@ -2,9 +2,9 @@ name: WebXNK CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, Tan ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, Tan ]
 
 jobs:
   build-and-test:

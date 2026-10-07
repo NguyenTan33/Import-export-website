@@ -22,6 +22,7 @@ public class ProductsController : BaseApiController
     /// <param name="filter">Tham số lọc (CategoryId, HsCode, MinPrice, MaxPrice, PageIndex, PageSize)</param>
     /// <param name="lang">Mã ngôn ngữ (Header 'X-Language': 'vi' hoặc 'en')</param>
     [HttpGet]
+    [ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResult<ProductSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProducts(
         [FromQuery] ProductFilterRequestDto filter,
@@ -38,6 +39,7 @@ public class ProductsController : BaseApiController
     /// <param name="id">ID sản phẩm</param>
     /// <param name="lang">Mã ngôn ngữ (Header 'X-Language': 'vi' hoặc 'en')</param>
     [HttpGet("{id:long}")]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProductById(long id, [FromHeader(Name = "X-Language")] string lang = "vi")

@@ -40,13 +40,55 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+
+    // Hỗ trợ truyền JWT Access Token qua Query String cho SignalR WebSocket Hubs (EXP-53, EXP-96)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
 
-// 3. Controllers & Routing
+// 3. Controllers, SignalR & Routing
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
+
+// 3.1 Tối ưu hiệu năng: In-Memory Caching & HTTP Response Caching & Compression (Gzip / Brotli)
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCaching();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "application/javascript",
+        "text/css",
+        "text/plain",
+        "image/svg+xml"
+    });
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
 
 // 4. Cấu hình Swagger OpenAPI kèm Authorization Header [Bearer {token}]
 builder.Services.AddSwaggerGen(options =>
@@ -98,7 +140,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 6. Pipeline: Global Exception Middleware
+// 6. Pipeline: Response Compression & Global Exception Middleware
+app.UseResponseCompression();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // 7. Swagger UI
@@ -110,6 +153,7 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowNextJsClient");
+app.UseResponseCaching();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -121,6 +165,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<WebXNK.Api.Hubs.RfqNegotiationHub>("/hubs/negotiation");
+app.MapHub<WebXNK.Api.Hubs.RfqNegotiationHub>("/hubs/rfq-negotiation");
 
 // 9. Khởi tạo và nạp dữ liệu mẫu (Seed Data)
 using (var scope = app.Services.CreateScope())
