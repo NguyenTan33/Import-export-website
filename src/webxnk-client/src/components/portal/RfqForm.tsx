@@ -31,8 +31,9 @@ export const RfqForm: React.FC<RfqFormProps> = ({
     {
       productId: availableProducts[0]?.id || 1,
       productName:
-        availableProducts[0]?.translations.find((tr) => tr.languageCode === language)?.name ||
-        availableProducts[0]?.translations[0]?.name ||
+        availableProducts[0]?.translations?.find((tr) => tr.languageCode === language)?.name ||
+        availableProducts[0]?.name ||
+        (availableProducts[0]?.translations && availableProducts[0]?.translations[0]?.name) ||
         "Giày thể thao Sneaker xuất khẩu",
       quantity: 1200,
       targetPriceUsd: 19.5,
@@ -44,8 +45,9 @@ export const RfqForm: React.FC<RfqFormProps> = ({
     if (availableProducts.length > 0) {
       const prod = availableProducts[0];
       const prodName =
-        prod.translations.find((tr) => tr.languageCode === language)?.name ||
-        prod.translations[0]?.name ||
+        prod.translations?.find((tr) => tr.languageCode === language)?.name ||
+        prod.name ||
+        (prod.translations && prod.translations[0]?.name) ||
         prod.baseSku;
 
       setItems([
@@ -70,9 +72,11 @@ export const RfqForm: React.FC<RfqFormProps> = ({
     if (field === "productId") {
       const prod = availableProducts.find((p) => p.id === Number(value));
       const pName =
-        prod?.translations.find((tr) => tr.languageCode === language)?.name ||
-        prod?.translations[0]?.name ||
-        prod?.baseSku;
+        prod?.translations?.find((tr) => tr.languageCode === language)?.name ||
+        prod?.name ||
+        (prod?.translations && prod?.translations[0]?.name) ||
+        prod?.baseSku ||
+        `Product #${value}`;
 
       updated[index] = {
         ...updated[index],
@@ -207,8 +211,9 @@ export const RfqForm: React.FC<RfqFormProps> = ({
               >
                 {availableProducts.map((p) => {
                   const pName =
-                    p.translations.find((tr) => tr.languageCode === language)?.name ||
-                    p.translations[0]?.name ||
+                    p.translations?.find((tr) => tr.languageCode === language)?.name ||
+                    p.name ||
+                    (p.translations && p.translations[0]?.name) ||
                     p.baseSku;
                   return (
                     <option key={p.id} value={p.id}>

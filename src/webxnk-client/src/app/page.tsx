@@ -293,10 +293,10 @@ export default function HomePage() {
   const filteredProducts = products.filter((p) => {
     const matchCat = selectedCatId ? p.categoryId === selectedCatId : true;
     const trans =
-      p.translations.find((tr) => tr.languageCode === language) ||
-      p.translations.find((tr) => tr.languageCode === "vi") ||
-      p.translations[0];
-    const name = trans?.name || "";
+      p.translations?.find((tr) => tr.languageCode === language) ||
+      p.translations?.find((tr) => tr.languageCode === "vi") ||
+      (p.translations && p.translations[0]);
+    const name = trans?.name || p.name || "";
     const matchKeyword = keyword
       ? name.toLowerCase().includes(keyword.toLowerCase()) ||
         p.baseSku.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -497,13 +497,14 @@ export default function HomePage() {
                 ) : (
                   cart.map((item, idx) => {
                     const trans =
-                      item.product.translations.find((tr) => tr.languageCode === language) ||
-                      item.product.translations.find((tr) => tr.languageCode === "vi") ||
-                      item.product.translations[0];
+                      item.product.translations?.find((tr) => tr.languageCode === language) ||
+                      item.product.translations?.find((tr) => tr.languageCode === "vi") ||
+                      (item.product.translations && item.product.translations[0]);
+                    const itemName = trans?.name || item.product.name || item.product.baseSku;
                     return (
                       <div key={idx} className="py-3 flex justify-between items-center text-xs">
                         <div>
-                          <p className="font-bold text-black">{trans?.name}</p>
+                          <p className="font-bold text-black">{itemName}</p>
                           <p className="text-neutral-500 font-mono">SKU: {item.product.baseSku}</p>
                           <p className="text-neutral-500 font-mono">
                             {isVi ? "Số lượng:" : "Qty:"} {item.quantity}

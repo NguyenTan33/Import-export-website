@@ -1,4 +1,4 @@
-﻿export interface CategoryTranslation {
+export interface CategoryTranslation {
   languageCode: string;
   name: string;
   description?: string;
@@ -7,7 +7,9 @@
 export interface Category {
   id: number;
   slug: string;
-  translations: CategoryTranslation[];
+  name?: string;
+  description?: string;
+  translations?: CategoryTranslation[];
 }
 
 export interface ExportPackaging {
@@ -37,12 +39,14 @@ export interface Product {
   id: number;
   categoryId: number;
   baseSku: string;
+  name?: string;
+  shortDescription?: string;
   hsCode: string;
   countryOfOrigin: string;
   defaultRetailPriceUsd: number;
   specificationsJson?: string;
   isActive: boolean;
-  translations: ProductTranslation[];
+  translations?: ProductTranslation[];
   exportPackaging?: ExportPackaging;
   priceTiers: PriceTier[];
 }

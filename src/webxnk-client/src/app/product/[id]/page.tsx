@@ -355,12 +355,12 @@ export default function ProductDetailPage() {
   }, [productId]);
 
   const currentTrans =
-    product.translations.find((tr) => tr.languageCode === language) ||
-    product.translations.find((tr) => tr.languageCode === "vi") ||
-    product.translations[0];
+    product.translations?.find((tr) => tr.languageCode === language) ||
+    product.translations?.find((tr) => tr.languageCode === "vi") ||
+    (product.translations && product.translations[0]);
 
-  const name = currentTrans?.name || product.baseSku;
-  const desc = currentTrans?.shortDescription || "";
+  const name = currentTrans?.name || product.name || product.baseSku;
+  const desc = currentTrans?.shortDescription || product.shortDescription || "";
 
   let specsObj: Record<string, string> = {};
   try {

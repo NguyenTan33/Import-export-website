@@ -58,10 +58,10 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({
           </button>
 
           {categories.map((cat) => {
-            const trans = cat.translations.find((tr) => tr.languageCode === language)
-              || cat.translations.find((tr) => tr.languageCode === "vi")
-              || cat.translations[0];
-            const name = trans?.name || cat.slug;
+            const trans = cat.translations?.find((tr) => tr.languageCode === language)
+              || cat.translations?.find((tr) => tr.languageCode === "vi")
+              || (cat.translations && cat.translations[0]);
+            const name = trans?.name || cat.name || cat.slug;
             const isSelected = selectedCategoryId === cat.id;
 
             return (

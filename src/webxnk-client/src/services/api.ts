@@ -2,6 +2,10 @@ import axios from "axios";
 import {
   Product,
   Category,
+  ProductTranslation,
+  CategoryTranslation,
+  ExportPackaging,
+  PriceTier,
   CbmCalculationResult,
   CbmItemInput,
   RfqRequestDto,
@@ -82,6 +86,32 @@ export const clientCache = {
   },
 };
 
+interface RawProductDto {
+  id: number;
+  categoryId: number;
+  baseSku: string;
+  name?: string;
+  shortDescription?: string;
+  hsCode?: string;
+  countryOfOrigin?: string;
+  defaultRetailPriceUsd?: number;
+  specificationsJson?: string;
+  isActive?: boolean;
+  translations?: ProductTranslation[];
+  exportPackaging?: ExportPackaging;
+  grossWeightKg?: number;
+  pcsPerCarton?: number;
+  priceTiers?: PriceTier[];
+}
+
+interface RawCategoryDto {
+  id: number;
+  slug: string;
+  name?: string;
+  description?: string;
+  translations?: CategoryTranslation[];
+}
+
 // 1. Catalog & Product Services
 export const catalogApi = {
   getProducts: async (categoryId?: number, keyword?: string): Promise<Product[]> => {
@@ -90,10 +120,31 @@ export const catalogApi = {
     if (cached) return cached;
 
     try {
-      const response = await apiClient.get<Product[]>("/products", {
+      const response = await apiClient.get<RawProductDto[] | { items: RawProductDto[] }>("/products", {
         params: { categoryId, keyword },
       });
-      const items = Array.isArray(response.data) ? response.data : [];
+      const raw = response.data;
+      const rawList = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === "object" && "items" in raw && Array.isArray(raw.items) ? raw.items : []);
+      const items: Product[] = rawList.map((p: RawProductDto) => ({
+        id: p.id,
+        categoryId: p.categoryId,
+        baseSku: p.baseSku,
+        hsCode: p.hsCode || "",
+        countryOfOrigin: p.countryOfOrigin || "VNM",
+        defaultRetailPriceUsd: p.defaultRetailPriceUsd ?? 0,
+        specificationsJson: p.specificationsJson,
+        isActive: p.isActive ?? true,
+        name: p.name || p.baseSku,
+        shortDescription: p.shortDescription || "",
+        translations: p.translations && Array.isArray(p.translations) ? p.translations : [
+          { languageCode: "vi", name: p.name || p.baseSku, shortDescription: p.shortDescription || "" },
+          { languageCode: "en", name: p.name || p.baseSku, shortDescription: p.shortDescription || "" }
+        ],
+        exportPackaging: p.exportPackaging,
+        priceTiers: p.priceTiers || [],
+      }));
       if (items.length > 0) {
         clientCache.set(cacheKey, items);
       }
@@ -108,11 +159,31 @@ export const catalogApi = {
     if (cached) return cached;
 
     try {
-      const response = await apiClient.get<Product>(`/products/${id}`);
+      const response = await apiClient.get<RawProductDto>(`/products/${id}`);
       if (response.data) {
-        clientCache.set(cacheKey, response.data);
+        const p = response.data;
+        const mapped: Product = {
+          id: p.id,
+          categoryId: p.categoryId,
+          baseSku: p.baseSku,
+          hsCode: p.hsCode || "",
+          countryOfOrigin: p.countryOfOrigin || "VNM",
+          defaultRetailPriceUsd: p.defaultRetailPriceUsd ?? 0,
+          specificationsJson: p.specificationsJson,
+          isActive: p.isActive ?? true,
+          name: p.name || p.baseSku,
+          shortDescription: p.shortDescription || "",
+          translations: p.translations && Array.isArray(p.translations) ? p.translations : [
+            { languageCode: "vi", name: p.name || p.baseSku, shortDescription: p.shortDescription || "" },
+            { languageCode: "en", name: p.name || p.baseSku, shortDescription: p.shortDescription || "" }
+          ],
+          exportPackaging: p.exportPackaging,
+          priceTiers: p.priceTiers || [],
+        };
+        clientCache.set(cacheKey, mapped);
+        return mapped;
       }
-      return response.data;
+      return null;
     } catch {
       return null;
     }
@@ -125,12 +196,22 @@ export const catalogApi = {
     const cached = clientCache.get<Category[]>(cacheKey, 5 * 60 * 1000);
     if (cached) return cached;
     try {
-      const response = await apiClient.get<Category[]>("/categories");
+      const response = await apiClient.get<RawCategoryDto[]>("/categories");
       const list = Array.isArray(response.data) ? response.data : [];
-      if (list.length > 0) {
-        clientCache.set(cacheKey, list);
+      const mapped: Category[] = list.map((c: RawCategoryDto) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name || c.slug,
+        description: c.description,
+        translations: c.translations && Array.isArray(c.translations) ? c.translations : [
+          { languageCode: "vi", name: c.name || c.slug },
+          { languageCode: "en", name: c.name || c.slug }
+        ],
+      }));
+      if (mapped.length > 0) {
+        clientCache.set(cacheKey, mapped);
       }
-      return list;
+      return mapped;
     } catch {
       return [];
     }

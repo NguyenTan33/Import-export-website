@@ -22,12 +22,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { t, language } = useLanguage();
 
   const currentTranslation =
-    product.translations.find((tr) => tr.languageCode === language) ||
-    product.translations.find((tr) => tr.languageCode === "vi") ||
-    product.translations[0];
+    product.translations?.find((tr) => tr.languageCode === language) ||
+    product.translations?.find((tr) => tr.languageCode === "vi") ||
+    (product.translations && product.translations[0]);
 
-  const name = currentTranslation?.name || product.baseSku;
-  const desc = currentTranslation?.shortDescription || "";
+  const name = currentTranslation?.name || product.name || product.baseSku;
+  const desc = currentTranslation?.shortDescription || product.shortDescription || "";
 
   // Best tier price for B2B badge
   const bestTier = product.priceTiers?.length

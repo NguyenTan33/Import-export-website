@@ -85,8 +85,9 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
 
   if (paymentDone) {
     const prodName =
-      product.translations.find((tr) => tr.languageCode === language)?.name ||
-      product.translations[0]?.name ||
+      product.translations?.find((tr) => tr.languageCode === language)?.name ||
+      product.name ||
+      (product.translations && product.translations[0]?.name) ||
       product.baseSku;
 
     return (
