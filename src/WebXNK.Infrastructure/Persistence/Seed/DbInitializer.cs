@@ -29,8 +29,7 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Lỗi xảy ra trong quá trình nạp dữ liệu mẫu vào CSDL.");
-            throw;
+            logger.LogWarning(ex, "Lưu ý: Không thể hoàn tất nạp dữ liệu mẫu CSDL ({Message}), ứng dụng tiếp tục khởi động.", ex.Message);
         }
     }
 

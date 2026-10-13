@@ -15,13 +15,16 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
         services.AddDbContext<WebXnkDbContext>(options =>
+        {
             options.UseSqlServer(connectionString, sqlOptions =>
             {
                 sqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorNumbersToAdd: null);
-            }));
+            });
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         services.AddScoped<WebXNK.Application.Common.Interfaces.IApplicationDbContext>(provider => 
             provider.GetRequiredService<WebXnkDbContext>());

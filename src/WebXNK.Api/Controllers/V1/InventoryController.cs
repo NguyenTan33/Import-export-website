@@ -36,7 +36,6 @@ public class InventoryController : BaseApiController
     /// <param name="productId">ID sản phẩm</param>
     [AllowAnonymous]
     [HttpGet("stock/{productId:long}")]
-    [HttpGet("balance/{productId:long}")]
     [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<StockSummaryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
