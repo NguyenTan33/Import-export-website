@@ -3,6 +3,7 @@ import {
   Product,
   Category,
   CbmCalculationResult,
+  CbmItemInput,
   RfqRequestDto,
   Warehouse,
   InventoryBalance,
@@ -73,11 +74,11 @@ export const clientCache = {
       cacheStore.clear();
       return;
     }
-    for (const key of cacheStore.keys()) {
+    Array.from(cacheStore.keys()).forEach((key) => {
       if (key.includes(pattern)) {
         cacheStore.delete(key);
       }
-    }
+    });
   },
 };
 
@@ -139,14 +140,27 @@ export const catalogApi = {
 // 2. Logistics & Container CBM Services (EXP-53)
 export const logisticsApi = {
   calculateCbm: async (payload: {
-    productId: number;
-    quantity: number;
-    containerType: "20GP" | "40GP" | "40HC";
+    productId?: number;
+    quantity?: number;
+    containerType?: "20GP" | "40GP" | "40HC";
     customCartonLengthCm?: number;
     customCartonWidthCm?: number;
     customCartonHeightCm?: number;
     customPcsPerCarton?: number;
-  }): Promise<CbmCalculationResult> => {
+  } | CbmItemInput[]): Promise<CbmCalculationResult> => {
+    if (Array.isArray(payload)) {
+      const response = await apiClient.post<CbmCalculationResult>(
+        "/logistics/calculate-cbm",
+        {
+          items: payload.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            productName: i.productName || "",
+          })),
+        }
+      );
+      return response.data;
+    }
     const response = await apiClient.post<CbmCalculationResult>(
       "/logistics/cbm-calculator",
       payload
@@ -175,6 +189,20 @@ export const inventoryApi = {
   getStockBalance: async (productId: number, warehouseId?: number): Promise<InventoryBalance[]> => {
     const response = await apiClient.get<InventoryBalance[]>(`/inventory/balance/${productId}`, {
       params: { warehouseId },
+    });
+    return response.data;
+  },
+  reserveStock: async (
+    productId: number,
+    warehouseId: number,
+    quantity: number,
+    referenceType: string = "B2C_CHECKOUT"
+  ) => {
+    const response = await apiClient.post("/inventory/reserve", {
+      productId,
+      warehouseId,
+      quantity,
+      referenceType,
     });
     return response.data;
   },

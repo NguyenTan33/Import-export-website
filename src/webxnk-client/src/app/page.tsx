@@ -278,6 +278,7 @@ export default function HomePage() {
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  useEffect(() => {
     Promise.all([
       catalogApi.getCategories(),
       catalogApi.getProducts()
