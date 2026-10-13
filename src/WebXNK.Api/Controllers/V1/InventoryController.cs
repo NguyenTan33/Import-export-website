@@ -22,6 +22,7 @@ public class InventoryController : BaseApiController
     /// </summary>
     [AllowAnonymous]
     [HttpGet("warehouses")]
+    [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<List<WarehouseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWarehouses()
     {
@@ -35,6 +36,8 @@ public class InventoryController : BaseApiController
     /// <param name="productId">ID sản phẩm</param>
     [AllowAnonymous]
     [HttpGet("stock/{productId:long}")]
+    [HttpGet("balance/{productId:long}")]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<StockSummaryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetStockSummary(long productId)

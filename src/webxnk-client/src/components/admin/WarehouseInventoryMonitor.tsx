@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Warehouse, InventoryBalance } from "@/types";
-import { Warehouse as WhIcon, Clock, CheckCircle } from "lucide-react";
+import { Warehouse as WhIcon, Clock, CheckCircle, RefreshCw } from "lucide-react";
 import { inventoryApi } from "@/services/api";
 
 export const WarehouseInventoryMonitor: React.FC = () => {
@@ -24,6 +24,8 @@ export const WarehouseInventoryMonitor: React.FC = () => {
       isActive: true,
     },
   ]);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const [balances, setBalances] = useState<InventoryBalance[]>([
     {
@@ -64,30 +66,49 @@ export const WarehouseInventoryMonitor: React.FC = () => {
     },
   ]);
 
-  useEffect(() => {
-    inventoryApi.getWarehouses().then((res) => {
-      if (res && Array.isArray(res) && res.length > 0) {
-        setWarehouses(res);
+  const refreshWarehouseData = async () => {
+    setIsLoading(true);
+    try {
+      const live = await inventoryApi.getWarehouses();
+      if (live && live.length > 0) {
+        setWarehouses(live);
       }
-    });
+      const liveStock = await inventoryApi.getStockBalance(1);
+      if (liveStock && liveStock.length > 0) {
+        setBalances(liveStock);
+      }
+    } catch {
+      // Retain mock data as fallback
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    inventoryApi.getStockBalance(1).then((res) => {
-      if (res && Array.isArray(res) && res.length > 0) {
-        setBalances(res);
-      }
-    });
+  useEffect(() => {
+    refreshWarehouseData();
   }, []);
 
   return (
     <div className="border border-black bg-white p-6 space-y-6">
-      <div className="border-b border-black pb-4">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-          MULTI-WAREHOUSE INVENTORY & 30-MIN STOCK RESERVATIONS (EXP-77, EXP-78, EXP-79)
-        </span>
-        <h2 className="text-xl font-black uppercase tracking-tight text-black flex items-center gap-2">
-          <WhIcon className="w-5 h-5" />
-          Giám sát tồn kho thực tế & Phiên giữ chỗ tự động
-        </h2>
+      <div className="border-b border-black pb-4 flex justify-between items-end">
+        <div>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+            MULTI-WAREHOUSE INVENTORY & 30-MIN STOCK RESERVATIONS (EXP-77, EXP-78, EXP-79)
+          </span>
+          <h2 className="text-xl font-black uppercase tracking-tight text-black flex items-center gap-2">
+            <WhIcon className="w-5 h-5" />
+            Giám sát tồn kho thực tế & Phiên giữ chỗ tự động
+          </h2>
+        </div>
+        <button
+          onClick={refreshWarehouseData}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-black text-xs font-mono font-bold bg-white hover:bg-neutral-100 transition-colors shadow-sm disabled:opacity-50"
+          title="Đồng bộ danh sách kho bãi từ Backend API"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-[#0E4B94]" : ""}`} />
+          <span>{isLoading ? "Đang tải..." : "Đồng bộ Kho (Live Sync)"}</span>
+        </button>
       </div>
 
       {/* 2 Warehouses Status */}

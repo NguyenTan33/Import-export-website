@@ -327,7 +327,8 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const productId = Number(params?.id || 1);
 
-  const [product, setProduct] = useState<Product | null>(null);
+  const fallbackProduct = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
+  const [product, setProduct] = useState<Product>(fallbackProduct);
   const [viewMode, setViewMode] = useState<"B2C" | "B2B">("B2C");
   const [quantity, setQuantity] = useState<number>(1);
   const [addedToast, setAddedToast] = useState(false);
@@ -337,23 +338,21 @@ export default function ProductDetailPage() {
   const isVi = language === "vi";
 
   useEffect(() => {
-    catalogApi.getProductById(productId).then((res) => {
-      if (res) {
-        setProduct(res);
-      } else {
-        const found = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
-        setProduct(found);
-      }
-    });
-  }, [productId]);
+    const cached = catalogApi.getCachedProductById ? catalogApi.getCachedProductById(productId) : null;
+    if (cached) {
+      setProduct(cached);
+    } else {
+      const currentFallback = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
+      setProduct(currentFallback);
+    }
 
-  if (!product) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-20 text-center font-mono text-sm">
-        {isVi ? "Đang tải thông tin sản phẩm xuất khẩu..." : "Loading export cargo product specifications..."}
-      </div>
-    );
-  }
+    catalogApi
+      .getProductById(productId)
+      .then((res) => {
+        if (res && res.translations) setProduct(res);
+      })
+      .catch(() => {});
+  }, [productId]);
 
   const currentTrans =
     product.translations.find((tr) => tr.languageCode === language) ||

@@ -17,6 +17,7 @@ import {
   Building,
   Shield,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import { useCurrency, Currency, CURRENCY_CONFIGS } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -44,78 +45,79 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-black/10 bg-white/95 backdrop-blur-md transition-colors">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Brand Logo - QUANG TẤN HOÀNG with 2 Brand Colors */}
-          <div className="flex items-center gap-6">
-            <Link href="/" className="group flex items-center gap-3">
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-3 sm:px-6 lg:px-8">
+          {/* Left: Brand Logo & Desktop Nav Links */}
+          <div className="flex items-center gap-3 xl:gap-6 min-w-0">
+            {/* Brand Logo - QUANG TẤN HOÀNG */}
+            <Link href="/" className="group flex items-center gap-2.5 shrink-0">
               <img
                 src="/logo.jpg"
                 alt="Logo Quang Tấn Hoàng"
-                width={42}
-                height={42}
-                style={{ width: "42px", height: "42px", objectFit: "contain" }}
+                width={40}
+                height={40}
+                style={{ width: "40px", height: "40px", objectFit: "contain" }}
                 className="rounded transition-transform group-hover:scale-105 shrink-0"
               />
-              <div className="flex flex-col">
-                <span className="font-extrabold tracking-tight text-lg leading-tight">
+              <div className="flex flex-col whitespace-nowrap">
+                <span className="font-extrabold tracking-tight text-base sm:text-lg leading-tight whitespace-nowrap">
                   <span className="text-[#0E4B94]">QUANG TẤN </span>
                   <span className="text-[#C9252C]">HOÀNG</span>
                 </span>
-                <span className="text-[10px] tracking-wider text-neutral-500 uppercase font-semibold">
+                <span className="text-[9px] sm:text-[10px] tracking-wider text-neutral-500 uppercase font-semibold whitespace-nowrap">
                   {language === "vi"
                     ? "CÔNG TY TNHH SX & TM DV XNK"
-                    : "IMPORT EXPORT PRODUCTION & TRADING"}
+                    : "IMPORT EXPORT TRADING CO., LTD"}
                 </span>
               </div>
             </Link>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-black">
+            {/* Desktop Navigation Links - Single-line whitespace-nowrap */}
+            <nav className="hidden lg:flex items-center gap-1 text-xs xl:text-sm font-medium text-black whitespace-nowrap">
               <Link
                 href="/"
-                className="px-3 py-1.5 rounded hover:bg-black/5 transition-colors"
+                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors whitespace-nowrap"
               >
                 {t("nav.catalog")}
               </Link>
               <Link
                 href="/portal"
-                className="px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1.5"
+                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 whitespace-nowrap"
               >
-                <FileText className="w-4 h-4 text-neutral-600" />
-                {t("nav.portal")}
+                <FileText className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+                <span>{t("nav.portal")}</span>
               </Link>
               <Link
                 href="/tracking"
-                className="px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1.5 font-semibold text-[#0E4B94]"
+                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 font-semibold text-[#0E4B94] whitespace-nowrap"
               >
-                <Ship className="w-4 h-4" />
-                {t("nav.tracking")}
+                <Ship className="w-3.5 h-3.5 shrink-0" />
+                <span>{t("nav.tracking")}</span>
               </Link>
               <Link
                 href="/cbm-calculator"
-                className="px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1.5"
+                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 whitespace-nowrap"
               >
-                <Box className="w-4 h-4 text-neutral-600" />
-                {t("nav.cbm")}
+                <Box className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+                <span>{t("nav.cbm")}</span>
               </Link>
               <Link
                 href="/admin"
-                className="px-3 py-1.5 rounded hover:bg-black/5 transition-colors"
+                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors whitespace-nowrap"
               >
                 {t("nav.admin")}
               </Link>
             </nav>
           </div>
 
-          {/* Right Action Icons & Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Right Action Controls - Compact & Symmetrical */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
             {/* Multi-Currency Dropdown */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value as Currency)}
-                aria-label={t("checkout.selectCurrency") || "Chọn đơn vị tiền tệ"}
-                className="appearance-none bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-xs font-mono font-bold px-2 py-1.5 pr-6 rounded cursor-pointer focus:outline-none focus:border-black transition-colors"
+                aria-label={t("checkout.selectCurrency") || "Currency"}
+                className="appearance-none bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-xs font-mono font-bold px-2 py-1.5 pr-5 rounded cursor-pointer focus:outline-none focus:border-black transition-colors whitespace-nowrap"
               >
                 {Object.keys(CURRENCY_CONFIGS).map((cur) => (
                   <option key={cur} value={cur}>
@@ -123,33 +125,33 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                   </option>
                 ))}
               </select>
-              <DollarSign className="w-3 h-3 absolute right-1.5 pointer-events-none text-neutral-500" />
+              <DollarSign className="w-3 h-3 absolute right-1 pointer-events-none text-neutral-500" />
             </div>
 
             {/* Language Toggle VI / EN */}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold uppercase border border-black/20 hover:border-black rounded bg-white hover:bg-neutral-50 text-black transition-colors shadow-sm"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-bold uppercase border border-black/20 hover:border-black rounded bg-white hover:bg-neutral-50 text-black transition-colors shadow-sm shrink-0 whitespace-nowrap"
               title={language === "vi" ? "Switch to 100% English" : "Chuyển sang 100% Tiếng Việt"}
             >
-              <Globe className="w-3.5 h-3.5 text-[#0E4B94]" />
+              <Globe className="w-3.5 h-3.5 text-[#0E4B94] shrink-0" />
               <span className="font-mono">{language === "vi" ? "VI" : "EN"}</span>
             </button>
 
             {/* Authentication Button or User Dropdown */}
             {isAuthenticated && user ? (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 border border-black/20 hover:border-black rounded bg-white text-xs font-medium text-black transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 border border-black/20 hover:border-black rounded bg-white text-xs font-medium text-black transition-colors whitespace-nowrap"
                 >
-                  <div className="w-5 h-5 rounded-full bg-[#0E4B94] text-white flex items-center justify-center text-[10px] font-bold">
+                  <div className="w-5 h-5 rounded-full bg-[#0E4B94] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                     {user.fullName.charAt(0)}
                   </div>
-                  <span className="hidden sm:inline max-w-[110px] truncate font-semibold">
+                  <span className="hidden sm:inline max-w-[90px] xl:max-w-[120px] truncate font-semibold">
                     {user.fullName}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-neutral-500" />
+                  <ChevronDown className="w-3 h-3 text-neutral-500 shrink-0" />
                 </button>
 
                 {userDropdownOpen && (
@@ -162,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                           ? language === "vi" ? "Doanh Nghiệp B2B" : "B2B Importer"
                           : user.role === "SUPER_ADMIN"
                           ? language === "vi" ? "Quản Trị Viên" : "Super Admin"
-                          : language === "vi" ? "Khách Hàng Mua Lẻ" : "B2C Customer"}
+                          : language === "vi" ? "Khách Mua Lẻ" : "B2C Customer"}
                       </span>
                       {user.companyName && (
                         <p className="text-[10px] text-neutral-600 mt-1 flex items-center gap-1">
@@ -173,6 +175,14 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                     </div>
 
                     <div className="py-1">
+                      <Link
+                        href="/profile"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs text-neutral-800 hover:bg-neutral-100 transition-colors font-semibold"
+                      >
+                        <User className="w-3.5 h-3.5 text-[#0E4B94]" />
+                        <span>{t("nav.profile")}</span>
+                      </Link>
                       {user.role === "B2B_BUYER" && (
                         <Link
                           href="/portal"
@@ -221,17 +231,17 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-black/20 hover:border-black rounded bg-white text-black hover:bg-neutral-50 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold border border-black/20 hover:border-black rounded bg-white text-black hover:bg-neutral-50 transition-colors shrink-0 whitespace-nowrap"
               >
-                <User className="w-3.5 h-3.5 text-neutral-700" />
-                <span className="hidden sm:inline">{t("nav.signIn")}</span>
+                <User className="w-3.5 h-3.5 text-neutral-700 shrink-0" />
+                <span>{t("nav.signIn")}</span>
               </button>
             )}
 
             {/* Cart Icon */}
             <button
               onClick={onOpenCart}
-              className="relative flex items-center justify-center p-2 rounded border border-black/20 hover:border-black text-black transition-colors"
+              className="relative flex items-center justify-center p-2 rounded border border-black/20 hover:border-black text-black transition-colors shrink-0"
               aria-label={t("nav.cart")}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -245,7 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
             {/* B2B Buyer Quick Quote CTA */}
             <Link
               href="/portal"
-              className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-semibold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm"
+              className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm shrink-0 whitespace-nowrap"
             >
               <span>{t("nav.rfqQuoteBtn")}</span>
               <ArrowRight className="w-3 h-3" />
@@ -254,7 +264,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-black"
+              className="lg:hidden p-2 text-black shrink-0"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -264,54 +274,139 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
 
         {/* Mobile Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-black/10 bg-white px-4 py-3 space-y-2">
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-black hover:text-[#0E4B94]"
-            >
-              {t("nav.catalog")}
-            </Link>
-            <Link
-              href="/portal"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-black hover:text-[#0E4B94]"
-            >
-              {t("nav.portal")}
-            </Link>
-            <Link
-              href="/tracking"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-[#0E4B94]"
-            >
-              {t("nav.tracking")}
-            </Link>
-            <Link
-              href="/cbm-calculator"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-black hover:text-[#0E4B94]"
-            >
-              {t("nav.cbm")}
-            </Link>
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-black hover:text-[#0E4B94]"
-            >
-              {t("nav.admin")}
-            </Link>
-
-            {!isAuthenticated && (
+          <div className="lg:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-4 shadow-xl">
+            {/* User Info or Sign In on Mobile */}
+            {isAuthenticated && user ? (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#0E4B94] text-white flex items-center justify-center font-bold text-xs">
+                      {user.fullName.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{user.fullName}</p>
+                      <p className="text-[10px] text-slate-500 truncate max-w-[180px]">{user.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg text-xs"
+                    title={t("nav.signOut")}
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-[#0E4B94] font-semibold hover:underline flex items-center gap-1"
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    {t("nav.profile")}
+                  </Link>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-[#0E4B94]">
+                    {user.role === "B2B_BUYER" ? "B2B" : user.role === "SUPER_ADMIN" ? "ADMIN" : "B2C"}
+                  </span>
+                </div>
+              </div>
+            ) : (
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   setAuthModalOpen(true);
                 }}
-                className="w-full text-left py-2 text-sm font-bold text-[#0E4B94] border-t border-neutral-100 mt-2 pt-3"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#0E4B94] text-white text-xs font-bold shadow-md shadow-blue-900/20"
               >
+                <User className="w-4 h-4" />
                 {t("nav.signIn")}
               </button>
             )}
+
+            {/* Navigation Links */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                {t("nav.menuTitle")}
+              </p>
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <Package className="w-4 h-4 text-[#0E4B94]" />
+                {t("nav.catalog")}
+              </Link>
+              <Link
+                href="/portal"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <FileText className="w-4 h-4 text-[#0E4B94]" />
+                {t("nav.portal")}
+              </Link>
+              <Link
+                href="/tracking"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <Ship className="w-4 h-4 text-[#0E4B94]" />
+                {t("nav.tracking")}
+              </Link>
+              <Link
+                href="/cbm-calculator"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <Box className="w-4 h-4 text-[#0E4B94]" />
+                {t("nav.cbm")}
+              </Link>
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <Shield className="w-4 h-4 text-[#C9252C]" />
+                {t("nav.admin")}
+              </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-[#0E4B94] hover:bg-blue-50 transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  {t("nav.profile")}
+                </Link>
+              )}
+            </div>
+
+            {/* Language & Currency on Mobile */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-slate-500" />
+                <button
+                  onClick={toggleLanguage}
+                  className="px-2.5 py-1 rounded bg-slate-100 text-slate-800 font-bold hover:bg-slate-200"
+                >
+                  {language.toUpperCase()} ({language === "vi" ? "Tiếng Việt" : "English"})
+                </button>
+              </div>
+
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as Currency)}
+                className="text-xs font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-800"
+              >
+                {Object.values(CURRENCY_CONFIGS).map((cfg) => (
+                  <option key={cfg.code} value={cfg.code}>
+                    {cfg.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
       </header>

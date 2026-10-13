@@ -4,12 +4,14 @@ import React, { useState } from "react";
 import { ExportDocumentDownloader } from "@/components/admin/ExportDocumentDownloader";
 import { WarehouseInventoryMonitor } from "@/components/admin/WarehouseInventoryMonitor";
 import { ExportAnalyticsDashboard } from "@/components/admin/ExportAnalyticsDashboard";
-import { Shield, TrendingUp, Anchor, Box, BarChart3, FileText, Warehouse } from "lucide-react";
+import { OrderManagementPanel } from "@/components/admin/OrderManagementPanel";
+import { PartnerVerificationPanel } from "@/components/admin/PartnerVerificationPanel";
+import { Shield, TrendingUp, Anchor, Box, BarChart3, FileText, Warehouse, Truck, Building } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "documents" | "inventory">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "documents" | "inventory" | "orders" | "partners">("analytics");
   const { formatPrice } = useCurrency();
   const { language } = useLanguage();
   const isVi = language === "vi";
@@ -100,7 +102,7 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
             activeTab === "analytics"
               ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
               : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
@@ -117,7 +119,7 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("documents")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
             activeTab === "documents"
               ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
               : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
@@ -134,7 +136,7 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("inventory")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
             activeTab === "inventory"
               ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
               : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
@@ -147,12 +149,48 @@ export default function AdminPage() {
               : "3. Multi-Warehouse & 30-Min Reservation"}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("orders")}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+            activeTab === "orders"
+              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
+              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <Truck className="w-4 h-4 text-[#0E4B94]" />
+          <span>
+            {isVi
+              ? "4. Quản Lý Đơn Hàng & Vận Chuyển"
+              : "4. Order Fulfillment & Shipping"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("partners")}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+            activeTab === "partners"
+              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
+              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <Building className="w-4 h-4 text-emerald-600" />
+          <span>
+            {isVi
+              ? "5. Duyệt Doanh Nghiệp B2B & Ủy Nhiệm Chi"
+              : "5. B2B Verification & Wire Transfers"}
+          </span>
+        </button>
       </div>
 
       {/* Tab Content Display */}
       {activeTab === "analytics" && <ExportAnalyticsDashboard />}
       {activeTab === "documents" && <ExportDocumentDownloader />}
       {activeTab === "inventory" && <WarehouseInventoryMonitor />}
+      {activeTab === "orders" && <OrderManagementPanel />}
+      {activeTab === "partners" && <PartnerVerificationPanel />}
     </div>
   );
 }

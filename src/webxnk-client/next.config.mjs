@@ -7,6 +7,9 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@microsoft/signalr", "axios"],
   },
+  images: {
+    unoptimized: true,
+  },
   async headers() {
     return [
       {
