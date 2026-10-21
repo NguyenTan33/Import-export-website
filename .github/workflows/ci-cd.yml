@@ -1,0 +1,41 @@
+name: WebXNK CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop, Tan ]
+  pull_request:
+    branches: [ main, master, Tan ]
+
+jobs:
+  build-and-test:
+    name: Build and Verify Solution
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 9 SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore NuGet Packages
+      run: dotnet restore WebXNK.sln
+
+    - name: Build Solution (Release)
+      run: dotnet build WebXNK.sln --configuration Release --no-restore
+
+    - name: Run Unit Tests (if any)
+      run: |
+        if ls tests/*/*.csproj 1> /dev/null 2>&1; then
+          dotnet test WebXNK.sln --configuration Release --no-build --verbosity normal
+        else
+          echo "Chưa có dự án unit test trong solution, bỏ qua bước chạy test."
+        fi
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image (Dry Run Check)
+      run: docker build -t webxnk-api:${{ github.sha }} .
