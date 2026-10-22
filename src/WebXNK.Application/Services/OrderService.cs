@@ -126,9 +126,13 @@ public class OrderService : IOrderService
         return order.ToResponseDto(products);
     }
 
-    public async Task<OrderResponseDto> GetOrderByIdAsync(long orderId, long? requestingUserId = null)
+    public async Task<OrderResponseDto> GetOrderByIdAsync(long orderId, long? requestingUserId = null, string? orderType = null)
     {
-        var order = await _context.Orders
+        var orderQuery = _context.Orders.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(orderType))
+            orderQuery = orderQuery.Where(order => order.OrderType == orderType);
+
+        var order = await orderQuery
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p.Translations)
@@ -152,13 +156,13 @@ public class OrderService : IOrderService
         return order.ToResponseDto(products);
     }
 
-    public async Task<List<OrderResponseDto>> GetUserOrdersAsync(long userId)
+    public async Task<List<OrderResponseDto>> GetUserOrdersAsync(long userId, string orderType)
     {
         var orders = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p.Translations)
-            .Where(o => o.UserId == userId)
+            .Where(o => o.UserId == userId && o.OrderType == orderType)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { 
   User, 
@@ -8,26 +8,43 @@ import {
   Package, 
   FileText, 
   CheckCircle2, 
-  Ship,
+  Ship, 
   Globe, 
   Mail, 
   MapPin, 
   ExternalLink, 
-  ShieldCheck,
-  ChevronRight,
-  Sparkles
+  ShieldCheck, 
+  ChevronRight, 
+  Sparkles,
+  FileSignature,
+  CreditCard,
+  Download,
+  AlertCircle,
+  FileCheck2,
+  Clock
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { isValidEmail, isValidVietnamPhone } from "@/utils/validation";
-import { ordersApi, rfqApi, OrderHistoryEntry, RfqHistoryEntry } from "@/services/api";
+import { 
+  ordersApi, 
+  rfqApi, 
+  OrderHistoryEntry, 
+  RfqHistoryEntry,
+  contractsApi,
+  documentsApi,
+  paymentsApi
+} from "@/services/api";
+import { SalesContract, B2BPaymentSlip } from "@/types";
+import { AddressBookPanel } from "@/components/profile/AddressBookPanel";
+import { Pagination } from "@/components/common/Pagination";
 
 export default function ProfilePage() {
   const { t, language } = useLanguage();
   const { user, isAuthenticated, loginAsDemo, loadProfile, updateProfile } = useAuth();
   const { formatPrice } = useCurrency();
-  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "rfqs">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "kyb" | "contracts" | "rfqs" | "payments" | "orders" | "addresses">("overview");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -39,6 +56,45 @@ export default function ProfilePage() {
   const [rfqs, setRfqs] = useState<RfqHistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState("");
+
+  // B2B specific contracts & payment slips state
+  const [contractsList, setContractsList] = useState<SalesContract[]>([]);
+  const [paymentSlips, setPaymentSlips] = useState<B2BPaymentSlip[]>([]);
+  const [isLoadingB2bData, setIsLoadingB2bData] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(5);
+  const [rfqPage, setRfqPage] = useState(1);
+  const [rfqPageSize, setRfqPageSize] = useState(5);
+  const [contractPage, setContractPage] = useState(1);
+  const [contractPageSize, setContractPageSize] = useState(5);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentPageSize, setPaymentPageSize] = useState(5);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (orderPage - 1) * orderPageSize;
+    return orders.slice(start, start + orderPageSize);
+  }, [orders, orderPage, orderPageSize]);
+
+  const paginatedRfqs = useMemo(() => {
+    const start = (rfqPage - 1) * rfqPageSize;
+    return rfqs.slice(start, start + rfqPageSize);
+  }, [rfqs, rfqPage, rfqPageSize]);
+
+  const paginatedContracts = useMemo(() => {
+    const start = (contractPage - 1) * contractPageSize;
+    return contractsList.slice(start, start + contractPageSize);
+  }, [contractsList, contractPage, contractPageSize]);
+
+  const paginatedPaymentSlips = useMemo(() => {
+    const start = (paymentPage - 1) * paymentPageSize;
+    return paymentSlips.slice(start, start + paymentPageSize);
+  }, [paymentSlips, paymentPage, paymentPageSize]);
+  const isB2b = user?.role === "B2B_BUYER";
+  const isB2c = user?.role === "B2C_CUSTOMER";
+  const canViewCustomerFeatures = isB2b || isB2c;
+  const canManageAddresses = canViewCustomerFeatures && !!user && !user.isDemo;
 
   useEffect(() => {
     if (!user) return;
@@ -55,13 +111,16 @@ export default function ProfilePage() {
     setHistoryError("");
 
     // Demo identities do not represent database accounts and must not load real customer history.
-    if (!user || user.isDemo) {
+    if (!user || user.isDemo || !canViewCustomerFeatures) {
       setIsLoadingHistory(false);
       return () => { isActive = false; };
     }
 
     setIsLoadingHistory(true);
-    void Promise.all([ordersApi.getMyOrders(), rfqApi.getMyRfqHistory()])
+    void Promise.all([
+      ordersApi.getMyOrders(),
+      isB2b ? rfqApi.getMyRfqHistory() : Promise.resolve([] as RfqHistoryEntry[]),
+    ])
       .then(([orderHistory, rfqHistory]) => {
         if (!isActive) return;
         setOrders(orderHistory);
@@ -77,7 +136,83 @@ export default function ProfilePage() {
       });
 
     return () => { isActive = false; };
-  }, [user?.id, user?.isDemo, language]);
+  }, [user?.id, user?.isDemo, isB2b, canViewCustomerFeatures, language]);
+
+  useEffect(() => {
+    if (!isB2b || !rfqs.length) {
+      setContractsList([]);
+      setPaymentSlips([]);
+      return;
+    }
+    let isActive = true;
+    setIsLoadingB2bData(true);
+    const validRfqs = rfqs.filter((r) => r.id);
+
+    Promise.all([
+      Promise.all(validRfqs.map((r) => contractsApi.getContractByRfqId(r.id!))),
+      Promise.all(validRfqs.map((r) => paymentsApi.getB2BPaymentsByRfq(r.id!))),
+    ])
+      .then(([contractsResults, slipsResults]) => {
+        if (!isActive) return;
+        const contracts = contractsResults.filter((c): c is SalesContract => c !== null);
+        setContractsList(contracts);
+        setPaymentSlips(slipsResults.flat());
+      })
+      .catch(() => {
+        // silent fallback
+      })
+      .finally(() => {
+        if (isActive) setIsLoadingB2bData(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isB2b, rfqs]);
+
+  useEffect(() => {
+    if (activeTab === "orders" && !canViewCustomerFeatures) setActiveTab("overview");
+    if (activeTab === "rfqs" && !isB2b) setActiveTab("overview");
+    if (activeTab === "kyb" && !isB2b) setActiveTab("overview");
+    if (activeTab === "contracts" && !isB2b) setActiveTab("overview");
+    if (activeTab === "payments" && !isB2b) setActiveTab("overview");
+    if (activeTab === "addresses" && !canManageAddresses) setActiveTab("overview");
+  }, [activeTab, canManageAddresses, canViewCustomerFeatures, isB2b]);
+
+  const handleDownloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadContract = async (contractId: number, contractNumber: string) => {
+    setDownloadingDocId(`contract-${contractId}`);
+    try {
+      const blob = await contractsApi.downloadContractPdf(contractId);
+      handleDownloadBlob(blob, `Sales_Contract_${contractNumber}.pdf`);
+    } catch {
+      alert(language === "vi" ? "Không thể tải file PDF hợp đồng từ máy chủ." : "Could not download contract PDF.");
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
+
+  const handleDownloadPi = async (rfqId: number, rfqNumber: string) => {
+    setDownloadingDocId(`pi-${rfqId}`);
+    try {
+      const blob = await documentsApi.downloadProformaInvoice(rfqId);
+      handleDownloadBlob(blob, `Proforma_Invoice_${rfqNumber}.pdf`);
+    } catch {
+      alert(language === "vi" ? "Không thể tải Proforma Invoice từ máy chủ." : "Could not download Proforma Invoice.");
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
 
   const handleProfileSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -216,13 +351,15 @@ export default function ProfilePage() {
                 {t("nav.admin")}
               </Link>
             )}
-            <Link
-              href="/portal"
-              className="px-4 py-2 rounded-xl bg-[#0E4B94] hover:bg-[#0B3D78] text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-md shadow-blue-900/20"
-            >
-              <FileText className="w-4 h-4" />
-              {t("nav.portal")}
-            </Link>
+            {isB2b && (
+              <Link
+                href="/portal"
+                className="px-4 py-2 rounded-xl bg-[#0E4B94] hover:bg-[#0B3D78] text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-md shadow-blue-900/20"
+              >
+                <FileText className="w-4 h-4" />
+                {t("nav.portal")}
+              </Link>
+            )}
             <Link
               href="/tracking"
               className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5"
@@ -246,34 +383,107 @@ export default function ProfilePage() {
             <User className="w-4 h-4" />
             {t("profile.tabOverview")}
           </button>
-          <button
-            onClick={() => setActiveTab("orders")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
-              activeTab === "orders"
-                ? "border-[#0E4B94] text-[#0E4B94]"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            {t("profile.tabB2cOrders")}
-            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">
-              {orders.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab("rfqs")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
-              activeTab === "rfqs"
-                ? "border-[#0E4B94] text-[#0E4B94]"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            {t("profile.tabB2bRfqs")}
-            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-[#0E4B94]">
-              {rfqs.length}
-            </span>
-          </button>
+
+          {isB2b && (
+            <button
+              onClick={() => setActiveTab("kyb")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "kyb"
+                  ? "border-[#0E4B94] text-[#0E4B94]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {language === "vi" ? "Hồ sơ pháp lý (KYB)" : "KYB & Compliance"}
+              {user?.isVerifiedB2b ? (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">✓</span>
+              ) : (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">!</span>
+              )}
+            </button>
+          )}
+
+          {isB2b && (
+            <button
+              onClick={() => setActiveTab("contracts")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "contracts"
+                  ? "border-[#0E4B94] text-[#0E4B94]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FileSignature className="w-4 h-4" />
+              {language === "vi" ? "Hợp đồng & Chứng từ" : "Contracts & Docs"}
+              {contractsList.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">
+                  {contractsList.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {isB2b && (
+            <button
+              onClick={() => setActiveTab("rfqs")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "rfqs"
+                  ? "border-[#0E4B94] text-[#0E4B94]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              {t("profile.tabB2bRfqs")}
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-[#0E4B94]">
+                {rfqs.length}
+              </span>
+            </button>
+          )}
+
+          {isB2b && (
+            <button
+              onClick={() => setActiveTab("payments")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "payments"
+                  ? "border-[#0E4B94] text-[#0E4B94]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <CreditCard className="w-4 h-4" />
+              {language === "vi" ? "Ủy nhiệm chi T/T" : "Wire Slips"}
+              {paymentSlips.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
+                  {paymentSlips.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {canViewCustomerFeatures && (
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "orders"
+                  ? "border-[#0E4B94] text-[#0E4B94]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              {isB2b ? (language === "vi" ? "Đơn hàng mẫu" : "Sample Orders") : t("profile.tabB2cOrders")}
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">
+                {orders.length}
+              </span>
+            </button>
+          )}
+
+          {canManageAddresses && (
+            <button
+              onClick={() => setActiveTab("addresses")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === "addresses" ? "border-[#0E4B94] text-[#0E4B94]" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+            >
+              <MapPin className="w-4 h-4" />
+              {isB2b ? (language === "vi" ? "Cảng / Kho giao hàng" : "Delivery Ports") : (language === "vi" ? "Sổ địa chỉ" : "Address book")}
+            </button>
+          )}
         </div>
 
         {/* TAB 1: OVERVIEW */}
@@ -345,60 +555,471 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Corporate Details */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Building className="w-4 h-4 text-[#0E4B94]" />
-                {t("profile.companyInfo")}
-              </h2>
-              {user?.companyName ? (
+            {/* Corporate Details or Retail Member Perks */}
+            {isB2b || user?.companyName ? (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Building className="w-4 h-4 text-[#0E4B94]" />
+                    {t("profile.companyInfo")}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("kyb")}
+                    className="text-xs font-semibold text-[#0E4B94] hover:underline flex items-center gap-1"
+                  >
+                    <span>{language === "vi" ? "Xem hồ sơ KYB" : "View KYB"}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400 uppercase tracking-wider">{t("auth.companyName")}</dt>
-                    <dd className="font-semibold text-slate-800 mt-0.5">{user.companyName}</dd>
+                    <dd className="font-semibold text-slate-800 mt-0.5">{user?.companyName}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 uppercase tracking-wider">{t("auth.taxId")}</dt>
-                    <dd className="font-semibold text-slate-800 mt-0.5 font-mono">{user.taxId || "—"}</dd>
+                    <dd className="font-semibold text-slate-800 mt-0.5 font-mono">{user?.taxId || "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 uppercase tracking-wider">{t("auth.country")}</dt>
-                    <dd className="font-semibold text-slate-800 mt-0.5">{user.country || "—"}</dd>
+                    <dd className="font-semibold text-slate-800 mt-0.5">{user?.country || "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400 uppercase tracking-wider">{t("auth.companyWebsite")}</dt>
                     <dd className="font-semibold text-blue-600 mt-0.5">
-                      {user.companyWebsite ? <a href={`https://${user.companyWebsite}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">
-                        <Globe className="w-3.5 h-3.5" />
-                        {user.companyWebsite}
-                      </a> : "—"}
+                      {user?.companyWebsite ? (
+                        <a href={`https://${user.companyWebsite}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">
+                          <Globe className="w-3.5 h-3.5" />
+                          {user.companyWebsite}
+                        </a>
+                      ) : "—"}
                     </dd>
                   </div>
                   <div className="sm:col-span-2">
                     <dt className="text-xs text-slate-400 uppercase tracking-wider">{t("auth.companyAddress")}</dt>
                     <dd className="font-medium text-slate-700 mt-0.5 flex items-start gap-1.5">
                       <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                      {user.companyAddress || "—"}
+                      {user?.companyAddress || "—"}
                     </dd>
                   </div>
                 </dl>
-              ) : (
-                <div className="py-6 text-center text-slate-500 space-y-3">
-                  <p className="text-sm">
-                    {language === "vi" 
-                      ? "Bạn đang đăng nhập bằng tài khoản Khách Mua Lẻ (B2C)."
-                      : "You are currently signed in as a Retail Buyer (B2C)."}
-                  </p>
-                  <button
-                    onClick={() => loginAsDemo("b2b")}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-[#0E4B94] text-xs font-semibold hover:bg-blue-100 transition-colors"
-                  >
-                    <Building className="w-4 h-4" />
-                    {language === "vi" ? "Chuyển sang tài khoản B2B Partner Demo" : "Switch to B2B Partner Demo Account"}
-                  </button>
+              </div>
+            ) : isB2c ? (
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                  <Package className="w-4 h-4 text-[#0E4B94]" />
+                  {language === "vi" ? "Đặc quyền thành viên mua lẻ (B2C)" : "Retail Member Perks"}
+                </h2>
+                <div className="space-y-3.5 text-xs text-slate-600">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">{language === "vi" ? "Thanh toán an toàn quốc tế" : "Secure Global Checkout"}</p>
+                      <p className="text-slate-500">{language === "vi" ? "Tích hợp cổng Stripe bảo mật 3D-Secure 2.0 cho mọi loại thẻ tín dụng & ghi nợ quốc tế." : "Stripe integration with 3D-Secure 2.0 for all credit & debit cards."}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Ship className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">{language === "vi" ? "Tra cứu hành trình vận đơn trực tiếp" : "Live Vessel & Order Tracking"}</p>
+                      <p className="text-slate-500">{language === "vi" ? "Theo dõi trạng thái giao nhận và định vị hải trình tàu biển xuất nhập khẩu thời gian thực." : "Real-time vessel and parcel tracking from origin port to destination."}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">{language === "vi" ? "Sổ địa chỉ nhận hàng linh hoạt" : "Flexible Address Book"}</p>
+                      <p className="text-slate-500">{language === "vi" ? "Lưu nhiều địa chỉ nhận hàng để thanh toán nhanh chóng chỉ với 1 click." : "Save multiple shipping destinations for instant 1-click checkout."}</p>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* TAB: B2B KYB & CORPORATE PROFILE */}
+        {activeTab === "kyb" && isB2b && (
+          <div className="space-y-6">
+            {/* Status Banner */}
+            <div className={`p-6 rounded-2xl border ${
+              user?.isVerifiedB2b 
+                ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" 
+                : "bg-amber-50/80 border-amber-200 text-amber-900"
+            }`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                    user?.isVerifiedB2b ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"
+                  }`}>
+                    {user?.isVerifiedB2b ? <ShieldCheck className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      {user?.isVerifiedB2b 
+                        ? (language === "vi" ? "Doanh nghiệp đã được xác thực pháp lý (KYB Verified)" : "Enterprise Verified Partner (KYB)")
+                        : (language === "vi" ? "Hồ sơ đang chờ xác thực pháp lý (Pending Verification)" : "Pending Corporate Verification")}
+                    </h3>
+                    <p className="text-xs mt-0.5 opacity-90">
+                      {user?.isVerifiedB2b
+                        ? (language === "vi" ? "Tài khoản có đầy đủ quyền ký hợp đồng ngoại thương ICC, mở đàm phán giá xuất khẩu và thanh toán T/T quốc tế." : "Full access to sign ICC sales contracts, direct Incoterms negotiation and wire transfer settlements.")
+                        : (language === "vi" ? "Ban quản trị đang rà soát thông tin pháp nhân. Quý doanh nghiệp vẫn có thể gửi RFQ để nhận báo giá dự toán." : "Admin is reviewing company profile. You can still submit RFQs for initial estimate.")}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    user?.isVerifiedB2b ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-amber-100 text-amber-800 border border-amber-300"
+                  }`}>
+                    {user?.isVerifiedB2b ? "Verified B2B" : "Verification Pending"}
+                  </span>
+                </div>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Card 1: Pháp nhân đăng ký */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Building className="w-4 h-4 text-[#0E4B94]" />
+                  {language === "vi" ? "Thông tin pháp nhân đăng ký" : "Corporate Registration"}
+                </h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Tên doanh nghiệp" : "Company Name"}</dt>
+                    <dd className="font-bold text-slate-900 mt-0.5">{user?.companyName || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Mã số thuế / Tax ID" : "Tax ID"}</dt>
+                    <dd className="font-mono font-bold text-slate-800 mt-0.5">{user?.taxId || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Quốc gia đăng ký" : "Country"}</dt>
+                    <dd className="font-semibold text-slate-800 mt-0.5">{user?.country || "Vietnam"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Website chính thức" : "Website"}</dt>
+                    <dd className="font-semibold text-blue-600 mt-0.5">
+                      {user?.companyWebsite ? (
+                        <a href={`https://${user.companyWebsite}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">
+                          <Globe className="w-3.5 h-3.5" />
+                          {user.companyWebsite}
+                        </a>
+                      ) : "—"}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Địa chỉ trụ sở" : "Registered Address"}</dt>
+                    <dd className="font-medium text-slate-700 mt-0.5 flex items-start gap-1.5">
+                      <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                      {user?.companyAddress || "—"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Card 2: Tài khoản thanh toán & Đối soát quốc tế */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <CreditCard className="w-4 h-4 text-[#0E4B94]" />
+                  {language === "vi" ? "Tài khoản đối soát thanh toán quốc tế" : "International Settlement Info"}
+                </h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Ngân hàng thụ hưởng" : "Beneficiary Bank"}</dt>
+                    <dd className="font-bold text-slate-900 mt-0.5">Vietcombank / MUFG Bank</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Mã SWIFT / BIC Code" : "SWIFT / BIC"}</dt>
+                    <dd className="font-mono font-bold text-[#0E4B94] mt-0.5">BFTVVNVX</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Tiền tệ thanh toán" : "Settlement Currency"}</dt>
+                    <dd className="font-mono font-bold text-slate-800 mt-0.5">USD, JPY, EUR</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Phương thức hỗ trợ" : "Supported Methods"}</dt>
+                    <dd className="font-semibold text-slate-800 mt-0.5">T/T, L/C Irrevocable</dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Ghi chú đối soát" : "Settlement Note"}</dt>
+                    <dd className="text-xs text-slate-500 mt-0.5">
+                      {language === "vi" 
+                        ? "Mọi khoản thanh toán T/T cọc 30% và thanh toán 70% còn lại theo vận đơn B/L đều được đối soát tự động qua mã tham chiếu RFQ."
+                        : "All 30% deposit and 70% balance wire transfers are reconciled automatically using your unique RFQ code."}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            {/* Card 3: Hồ sơ năng lực & Tiêu chuẩn ngành */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
+                <FileCheck2 className="w-4 h-4 text-[#0E4B94]" />
+                {language === "vi" ? "Hồ sơ năng lực & Chứng nhận xuất nhập khẩu" : "Export Credentials & Compliance"}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">Giấy ĐKKD (ERC)</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Hợp lệ</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Bản sao điện tử Giấy chứng nhận Đăng ký Doanh nghiệp.</p>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">ISO 9001:2015</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Đã kiểm tra</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Tiêu chuẩn Hệ thống Quản lý Chất lượng xuất khẩu.</p>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">HACCP / GlobalGAP</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Đạt chuẩn</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Chứng nhận an toàn thực phẩm và chuỗi cung ứng nông sản.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: B2B CONTRACTS & DOCUMENTS */}
+        {activeTab === "contracts" && isB2b && (
+          <div className="space-y-4">
+            {isLoadingB2bData ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+                {language === "vi" ? "Đang tải danh sách hợp đồng ngoại thương..." : "Loading trade contracts..."}
+              </div>
+            ) : contractsList.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 space-y-3">
+                <FileSignature className="w-10 h-10 text-slate-300 mx-auto" />
+                <p>
+                  {language === "vi"
+                    ? "Chưa có hợp đồng nào được khởi tạo. Sau khi đàm phán hoàn tất ở Cổng B2B, bạn có thể xem và tải hợp đồng tại đây."
+                    : "No contracts generated yet. Once negotiation in B2B Portal concludes, contracts will appear here."}
+                </p>
+                <Link
+                  href="/portal"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0E4B94] text-white text-xs font-semibold hover:bg-[#0B3D78] transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {language === "vi" ? "Mở Cổng đàm phán B2B Portal" : "Open B2B Portal"}
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {paginatedContracts.map((c, cIdx) => (
+                    <div 
+                      key={c.id ?? `contract-${cIdx}`}
+                      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
+                    >
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-base">{c.contractNumber}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              c.status === "LEGALLY_BINDING"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                : c.status === "BUYER_SIGNED" || c.status === "SELLER_SIGNED"
+                                ? "bg-blue-50 text-[#0E4B94] border border-blue-200"
+                                : "bg-slate-100 text-slate-700"
+                            }`}>
+                              {c.status === "LEGALLY_BINDING"
+                                ? (language === "vi" ? "Có hiệu lực pháp lý (2 bên đã ký)" : "Legally Binding")
+                                : c.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {language === "vi" ? "Tham chiếu" : "Ref"}: <span className="font-medium text-slate-700">{c.rfqNumber}</span> · {language === "vi" ? "Cảng đến" : "Discharge"}: <span className="font-medium text-slate-700">{c.portOfDischarge}</span>
+                          </p>
+                        </div>
+
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Giá trị hợp đồng" : "Contract Value"}</p>
+                          <p className="text-lg font-bold text-[#0E4B94]">
+                            {formatPrice(c.totalAmountUsd)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-xl">
+                        <div>
+                          <span className="text-slate-400 block uppercase tracking-wider">Incoterms</span>
+                          <span className="font-bold text-slate-800">{c.incotermCode}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block uppercase tracking-wider">{language === "vi" ? "Bên mua" : "Buyer"}</span>
+                          <span className="font-semibold text-slate-800">{c.buyerCompanyName}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block uppercase tracking-wider">{language === "vi" ? "Điều khoản thanh toán" : "Payment Terms"}</span>
+                          <span className="font-semibold text-slate-800">{c.paymentTerms || "T/T 30/70"}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadContract(c.id, c.contractNumber)}
+                          disabled={downloadingDocId === `contract-${c.id}`}
+                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5 text-[#0E4B94]" />
+                          {downloadingDocId === `contract-${c.id}` ? "Đang tải..." : (language === "vi" ? "Tải PDF Hợp đồng ICC" : "Download ICC PDF")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPi(c.rfqRequestId, c.rfqNumber)}
+                          disabled={downloadingDocId === `pi-${c.rfqRequestId}`}
+                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5 text-blue-600" />
+                          {downloadingDocId === `pi-${c.rfqRequestId}` ? "Đang tải..." : (language === "vi" ? "Tải Proforma Invoice" : "Download P/I")}
+                        </button>
+                        <Link
+                          href={`/portal?rfqId=${c.rfqRequestId}`}
+                          className="px-4 py-2 rounded-xl bg-[#0E4B94] hover:bg-[#0B3D78] text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {language === "vi" ? "Mở phòng ký điện tử" : "Open Negotiation"}
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Pagination
+                  currentPage={contractPage}
+                  pageSize={contractPageSize}
+                  totalItems={contractsList.length}
+                  onPageChange={setContractPage}
+                  onPageSizeChange={(newSize) => {
+                    setContractPageSize(newSize);
+                    setContractPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* TAB: B2B PAYMENT SLIPS */}
+        {activeTab === "payments" && isB2b && (
+          <div className="space-y-4">
+            {isLoadingB2bData ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+                {language === "vi" ? "Đang tải lịch sử thanh toán & ủy nhiệm chi..." : "Loading wire transfer slips..."}
+              </div>
+            ) : paymentSlips.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 space-y-3">
+                <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
+                <p>
+                  {language === "vi"
+                    ? "Bạn chưa có ủy nhiệm chi nào được tải lên hệ thống."
+                    : "No wire transfer payment slips submitted yet."}
+                </p>
+                <Link
+                  href="/portal"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0E4B94] text-white text-xs font-semibold hover:bg-[#0B3D78] transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {language === "vi" ? "Tới Cổng B2B để nộp Ủy nhiệm chi" : "Go to B2B Portal to Submit Slip"}
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {paginatedPaymentSlips.map((slip, sIdx) => {
+                    const status = slip.status || slip.verificationStatus || "PENDING";
+                    const isApproved = status === "VERIFIED" || status === "APPROVED";
+                    const isPending = status === "PENDING" || status === "PENDING_VERIFICATION";
+                    return (
+                      <div 
+                        key={slip.id ?? `slip-${sIdx}`}
+                        className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-base font-mono">{slip.swiftReference || `SLIP-#${slip.id}`}</span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                isApproved
+                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                  : isPending
+                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                  : "bg-red-50 text-red-800 border border-red-200"
+                              }`}>
+                                {isApproved
+                                  ? (language === "vi" ? "Kế toán đã duyệt" : "Verified")
+                                  : isPending
+                                  ? (language === "vi" ? "Đang chờ đối soát" : "Pending")
+                                  : (language === "vi" ? "Từ chối" : "Rejected")}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {language === "vi" ? "RFQ tham chiếu" : "RFQ Ref"}: <span className="font-medium text-slate-700">{slip.rfqNumber || `RFQ #${slip.rfqId}`}</span>
+                              {slip.submittedAt && ` · ${new Date(slip.submittedAt).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US")}`}
+                            </p>
+                          </div>
+
+                          <div className="text-left sm:text-right">
+                            <p className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Số tiền nộp" : "Amount"}</p>
+                            <p className="text-lg font-bold text-[#0E4B94]">
+                              {formatPrice(slip.amountUsd)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-xl">
+                          <div>
+                            <span className="text-slate-400 block uppercase tracking-wider">{language === "vi" ? "Đợt thanh toán" : "Payment Stage"}</span>
+                            <span className="font-bold text-slate-800">{slip.paymentStage}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block uppercase tracking-wider">{language === "vi" ? "Phương thức" : "Method"}</span>
+                            <span className="font-semibold text-slate-800">{slip.paymentMethod || "T/T Wire"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block uppercase tracking-wider">{language === "vi" ? "Chứng từ đính kèm" : "Proof Document"}</span>
+                            {slip.bankSlipFileUrl ? (
+                              <a 
+                                href={slip.bankSlipFileUrl} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="text-blue-600 font-semibold hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {language === "vi" ? "Xem file Ủy nhiệm chi" : "View Bank Slip File"}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Pagination
+                  currentPage={paymentPage}
+                  pageSize={paymentPageSize}
+                  totalItems={paymentSlips.length}
+                  onPageChange={setPaymentPage}
+                  onPageSizeChange={(newSize) => {
+                    setPaymentPageSize(newSize);
+                    setPaymentPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -414,49 +1035,65 @@ export default function ProfilePage() {
                   ? (language === "vi" ? "Tài khoản demo không có lịch sử đơn hàng thật." : "Demo accounts have no real order history.")
                   : (language === "vi" ? "Bạn chưa có đơn hàng nào." : "You have no orders yet.")}
               </div>
-            ) : orders.map((order, orderIndex) => (
-              <div 
-                key={order.id ?? order.orderNumber ?? `order-${orderIndex}`}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-base">{order.orderCode}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{order.orderStatus}</span>
+            ) : (
+              <>
+                {paginatedOrders.map((order, orderIndex) => (
+                  <div 
+                    key={order.id ?? order.orderNumber ?? `order-${orderIndex}`}
+                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-base">{order.orderCode}</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{order.orderStatus}</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {t("profile.orderDate")}: <span className="font-medium text-slate-700">{new Date(order.createdAt).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US")}</span>
+                        </p>
+                      </div>
+
+                      <div className="text-left sm:text-right">
+                        <p className="text-xs text-slate-400 uppercase tracking-wider">{t("profile.orderTotal")}</p>
+                        <p className="text-lg font-bold text-[#0E4B94]">
+                          {formatPrice(order.totalAmountUsd)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {t("profile.orderDate")}: <span className="font-medium text-slate-700">{new Date(order.createdAt).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US")}</span>
+
+                    {/* Items */}
+                    <div className="space-y-2">
+                      {(Array.isArray(order.items) ? order.items : []).map((item, itemIndex) => (
+                        <div key={item.id ?? `${order.id ?? orderIndex}-item-${itemIndex}`} className="flex items-center justify-between text-sm py-1">
+                          <span className="text-slate-800 font-medium">
+                            {item.productName} <span className="text-slate-400">× {item.quantity}</span>
+                          </span>
+                          <span className="text-slate-600 font-mono">
+                            {formatPrice(item.totalPriceUsd)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+                      {language === "vi" ? "Thanh toán" : "Payment"}: {order.paymentStatus} · {order.recipientName} · {order.shippingAddressLine}
                     </p>
                   </div>
+                ))}
 
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">{t("profile.orderTotal")}</p>
-                    <p className="text-lg font-bold text-[#0E4B94]">
-                      {formatPrice(order.totalAmountUsd)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div className="space-y-2">
-                  {(Array.isArray(order.items) ? order.items : []).map((item, itemIndex) => (
-                    <div key={item.id ?? `${order.id ?? orderIndex}-item-${itemIndex}`} className="flex items-center justify-between text-sm py-1">
-                      <span className="text-slate-800 font-medium">
-                        {item.productName} <span className="text-slate-400">× {item.quantity}</span>
-                      </span>
-                      <span className="text-slate-600 font-mono">
-                        {formatPrice(item.totalPriceUsd)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="border-t border-slate-100 pt-3 text-xs text-slate-500">
-                  {language === "vi" ? "Thanh toán" : "Payment"}: {order.paymentStatus} · {order.recipientName} · {order.shippingAddressLine}
-                </p>
-              </div>
-            ))}
+                <Pagination
+                  currentPage={orderPage}
+                  pageSize={orderPageSize}
+                  totalItems={orders.length}
+                  onPageChange={setOrderPage}
+                  onPageSizeChange={(newSize) => {
+                    setOrderPageSize(newSize);
+                    setOrderPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -472,55 +1109,72 @@ export default function ProfilePage() {
                   ? (language === "vi" ? "Tài khoản demo không có yêu cầu báo giá thật." : "Demo accounts have no real quotation requests.")
                   : (language === "vi" ? "Bạn chưa gửi yêu cầu báo giá nào." : "You have not submitted any quotation requests.")}
               </div>
-            ) : rfqs.map((rfq, rfqIndex) => (
-              <div 
-                key={rfq.id ?? rfq.rfqNumber ?? `rfq-${rfqIndex}`}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-base">{rfq.rfqNumber}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#0E4B94] border border-blue-200">
-                        {rfq.status}
-                      </span>
+            ) : (
+              <>
+                {paginatedRfqs.map((rfq, rfqIndex) => (
+                  <div 
+                    key={rfq.id ?? rfq.rfqNumber ?? `rfq-${rfqIndex}`}
+                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-base">{rfq.rfqNumber}</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#0E4B94] border border-blue-200">
+                            {rfq.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {t("profile.rfqDate")}: <span className="font-medium text-slate-700">{new Date(rfq.createdAt).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US")}</span>
+                        </p>
+                      </div>
+
+                      <div className="text-left sm:text-right">
+                        <p className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Giá trị dự toán" : "Quotation Value"}</p>
+                        <p className="text-lg font-bold text-[#C9252C]">
+                          {formatPrice(rfq.totalQuotedAmountUsd)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {t("profile.rfqDate")}: <span className="font-medium text-slate-700">{new Date(rfq.createdAt).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US")}</span>
-                    </p>
-                  </div>
 
-                  <div className="text-left sm:text-right">
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">{language === "vi" ? "Giá trị dự toán" : "Quotation Value"}</p>
-                    <p className="text-lg font-bold text-[#C9252C]">
-                      {formatPrice(rfq.totalQuotedAmountUsd)}
-                    </p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
+                      <div>
+                        <span className="text-xs text-slate-400 block">{t("profile.rfqIncoterms")}</span>
+                        <span className="font-semibold text-slate-800">{rfq.incotermCode}</span>
+                        <span className="text-xs text-slate-500 block">Cảng đích: {rfq.portOfDischarge}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400 block">{t("profile.rfqCbm")}</span>
+                        <span className="font-semibold text-slate-800">{rfq.totalCbm} CBM</span>
+                        <span className="text-xs text-slate-500 block">{rfq.companyName}</span>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
-                  <div>
-                    <span className="text-xs text-slate-400 block">{t("profile.rfqIncoterms")}</span>
-                    <span className="font-semibold text-slate-800">{rfq.incotermCode}</span>
-                    <span className="text-xs text-slate-500 block">Cảng đích: {rfq.portOfDischarge}</span>
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                      <Link href={`/portal?rfqId=${rfq.id}`} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {t("profile.openNegotiation")}
+                      </Link>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">{t("profile.rfqCbm")}</span>
-                    <span className="font-semibold text-slate-800">{rfq.totalCbm} CBM</span>
-                    <span className="text-xs text-slate-500 block">{rfq.companyName}</span>
-                  </div>
-                </div>
+                ))}
 
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-                  <Link href={`/portal?rfqId=${rfq.id}`} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {t("profile.openNegotiation")}
-                  </Link>
-                </div>
-              </div>
-            ))}
+                <Pagination
+                  currentPage={rfqPage}
+                  pageSize={rfqPageSize}
+                  totalItems={rfqs.length}
+                  onPageChange={setRfqPage}
+                  onPageSizeChange={(newSize) => {
+                    setRfqPageSize(newSize);
+                    setRfqPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                />
+              </>
+            )}
           </div>
         )}
+        {activeTab === "addresses" && canManageAddresses && <AddressBookPanel />}
       </div>
     </div>
   );

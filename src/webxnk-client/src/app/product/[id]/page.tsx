@@ -50,6 +50,13 @@ export default function ProductDetailPage() {
   const { imageUrl } = useProductImage(product || { id: productId, baseSku: "", imageUrl: undefined });
   const isVi = language === "vi";
   const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+  const isB2c = user?.role === "B2C_CUSTOMER";
+
+  useEffect(() => {
+    if (isB2c && viewMode !== "B2C") {
+      setViewMode("B2C");
+    }
+  }, [isB2c, viewMode]);
 
   useEffect(() => {
     let active = true;
@@ -251,35 +258,37 @@ export default function ProductDetailPage() {
             <p className="mt-2 text-sm text-neutral-600 leading-relaxed">{desc}</p>
           </div>
 
-          {/* DUAL-MODE TOGGLE SWITCH */}
-          <div className="border-2 border-neutral-900 p-1.5 bg-neutral-100 flex rounded">
-            <button
-              onClick={() => {
-                setViewMode("B2C");
-                if (quantity > 100) setQuantity(1);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
-                viewMode === "B2C"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-neutral-500 hover:text-black"
-              }`}
-            >
-              {t("pdp.viewModeB2c")}
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("B2B");
-                if (quantity < 120) setQuantity(product.priceTiers[0]?.minQuantity || 120);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
-                viewMode === "B2B"
-                  ? "bg-[#0E4B94] text-white shadow-sm"
-                  : "text-neutral-500 hover:text-black"
-              }`}
-            >
-              {t("pdp.viewModeB2b")}
-            </button>
-          </div>
+          {/* DUAL-MODE TOGGLE SWITCH (Hidden for B2C retail accounts) */}
+          {!isB2c && (
+            <div className="border-2 border-neutral-900 p-1.5 bg-neutral-100 flex rounded">
+              <button
+                onClick={() => {
+                  setViewMode("B2C");
+                  if (quantity > 100) setQuantity(1);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
+                  viewMode === "B2C"
+                    ? "bg-white text-black shadow-sm"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                {t("pdp.viewModeB2c")}
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("B2B");
+                  if (quantity < 120) setQuantity(product.priceTiers[0]?.minQuantity || 120);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
+                  viewMode === "B2B"
+                    ? "bg-[#0E4B94] text-white shadow-sm"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                {t("pdp.viewModeB2b")}
+              </button>
+            </div>
+          )}
 
           {/* Price Banner */}
           <div className="border border-neutral-300 p-4 bg-white flex flex-col sm:flex-row justify-between sm:items-center gap-3 rounded">
@@ -515,117 +524,119 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Phase 2: Interactive B2B Logistics Suite (Landed Cost FTA & 3D Container Load Planner) */}
-      <div className="space-y-4 mt-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black pb-3">
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#0E4B94] font-bold">
-              {isVi
-                ? "BỘ CÔNG CỤ LOGISTICS & THUẾ QUAN NGOẠI THƯƠNG (PHASE 2)"
-                : "B2B EXPORT LOGISTICS & FTA TARIFF INTELLIGENCE SUITE"}
-            </span>
-            <h2 className="text-xl font-black uppercase tracking-tight text-black mt-0.5">
-              {isVi
-                ? "Mô phỏng Giá vốn Nhập khẩu (Landed Cost) & Đóng hàng Container 3D"
-                : "Landed Cost Simulator & 3D WebGL Container Load Planner"}
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Quick Lot Size Presets for B2B Simulation */}
-            <div className="flex items-center gap-1 text-[11px] font-mono bg-neutral-100 border border-neutral-300 px-2 py-1 rounded">
-              <span className="text-neutral-500">{isVi ? "Lô mô phỏng:" : "Lot Size:"}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode("B2B");
-                  setQuantity(product.priceTiers?.[0]?.minQuantity || 500);
-                }}
-                className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
-              >
-                MOQ ({product.priceTiers?.[0]?.minQuantity || 500})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode("B2B");
-                  const qty20gp = Math.max(500, Math.floor(28 / singleCartonCbm) * pcsPerCarton);
-                  setQuantity(qty20gp);
-                }}
-                className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
-              >
-                Full 20GP
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode("B2B");
-                  const qty40hc = Math.max(1000, Math.floor(65 / singleCartonCbm) * pcsPerCarton);
-                  setQuantity(qty40hc);
-                }}
-                className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
-              >
-                Full 40HC
-              </button>
+      {/* Phase 2: Interactive B2B Logistics Suite (Landed Cost FTA & 3D Container Load Planner) - Hidden for B2C */}
+      {!isB2c && (
+        <div className="space-y-4 mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black pb-3">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#0E4B94] font-bold">
+                {isVi
+                  ? "BỘ CÔNG CỤ LOGISTICS & THUẾ QUAN NGOẠI THƯƠNG (PHASE 2)"
+                  : "B2B EXPORT LOGISTICS & FTA TARIFF INTELLIGENCE SUITE"}
+              </span>
+              <h2 className="text-xl font-black uppercase tracking-tight text-black mt-0.5">
+                {isVi
+                  ? "Mô phỏng Giá vốn Nhập khẩu (Landed Cost) & Đóng hàng Container 3D"
+                  : "Landed Cost Simulator & 3D WebGL Container Load Planner"}
+              </h2>
             </div>
 
-            {/* Tool Switcher Tabs */}
-            <div className="flex border border-black bg-white rounded overflow-hidden text-xs font-mono font-bold">
-              <button
-                type="button"
-                onClick={() => setLogisticsToolTab("landed_cost")}
-                className={`px-3.5 py-2 flex items-center gap-1.5 uppercase transition-colors ${
-                  logisticsToolTab === "landed_cost"
-                    ? "bg-[#0E4B94] text-white"
-                    : "text-neutral-700 hover:bg-neutral-100"
-                }`}
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>{isVi ? "Tính Giá Vốn & Thuế FTA" : "Landed Cost & FTA Duty"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setLogisticsToolTab("container_3d")}
-                className={`px-3.5 py-2 flex items-center gap-1.5 uppercase border-l border-black transition-colors ${
-                  logisticsToolTab === "container_3d"
-                    ? "bg-[#0E4B94] text-white"
-                    : "text-neutral-700 hover:bg-neutral-100"
-                }`}
-              >
-                <Box className="w-3.5 h-3.5" />
-                <span>{isVi ? "Mô phỏng Cont 3D WebGL" : "3D Container Planner"}</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Quick Lot Size Presets for B2B Simulation */}
+              <div className="flex items-center gap-1 text-[11px] font-mono bg-neutral-100 border border-neutral-300 px-2 py-1 rounded">
+                <span className="text-neutral-500">{isVi ? "Lô mô phỏng:" : "Lot Size:"}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    setQuantity(product.priceTiers?.[0]?.minQuantity || 500);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  MOQ ({product.priceTiers?.[0]?.minQuantity || 500})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    const qty20gp = Math.max(500, Math.floor(28 / singleCartonCbm) * pcsPerCarton);
+                    setQuantity(qty20gp);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  Full 20GP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    const qty40hc = Math.max(1000, Math.floor(65 / singleCartonCbm) * pcsPerCarton);
+                    setQuantity(qty40hc);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  Full 40HC
+                </button>
+              </div>
+
+              {/* Tool Switcher Tabs */}
+              <div className="flex border border-black bg-white rounded overflow-hidden text-xs font-mono font-bold">
+                <button
+                  type="button"
+                  onClick={() => setLogisticsToolTab("landed_cost")}
+                  className={`px-3.5 py-2 flex items-center gap-1.5 uppercase transition-colors ${
+                    logisticsToolTab === "landed_cost"
+                      ? "bg-[#0E4B94] text-white"
+                      : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>{isVi ? "Tính Giá Vốn & Thuế FTA" : "Landed Cost & FTA Duty"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogisticsToolTab("container_3d")}
+                  className={`px-3.5 py-2 flex items-center gap-1.5 uppercase border-l border-black transition-colors ${
+                    logisticsToolTab === "container_3d"
+                      ? "bg-[#0E4B94] text-white"
+                      : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5" />
+                  <span>{isVi ? "Mô phỏng Cont 3D WebGL" : "3D Container Planner"}</span>
+                </button>
+              </div>
             </div>
           </div>
+
+          {logisticsToolTab === "landed_cost" ? (
+            <LandedCostCalculator
+              productId={product.id}
+              sku={product.baseSku}
+              hsCode={product.hsCode}
+              productName={name}
+              quantity={Math.max(quantity, viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120)}
+              unitPriceUsd={
+                viewMode === "B2B"
+                  ? effectiveUnitPrice
+                  : product.priceTiers?.[0]?.unitPriceUsd || product.defaultRetailPriceUsd
+              }
+            />
+          ) : (
+            <CbmVisualizer
+              items={[
+                {
+                  productId: product.id,
+                  quantity: Math.max(
+                    quantity,
+                    viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120
+                  ),
+                },
+              ]}
+            />
+          )}
         </div>
-
-        {logisticsToolTab === "landed_cost" ? (
-          <LandedCostCalculator
-            productId={product.id}
-            sku={product.baseSku}
-            hsCode={product.hsCode}
-            productName={name}
-            quantity={Math.max(quantity, viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120)}
-            unitPriceUsd={
-              viewMode === "B2B"
-                ? effectiveUnitPrice
-                : product.priceTiers?.[0]?.unitPriceUsd || product.defaultRetailPriceUsd
-            }
-          />
-        ) : (
-          <CbmVisualizer
-            items={[
-              {
-                productId: product.id,
-                quantity: Math.max(
-                  quantity,
-                  viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120
-                ),
-              },
-            ]}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }

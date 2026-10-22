@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { Warehouse as WarehouseIcon, RefreshCw } from "lucide-react";
 import { Warehouse } from "@/types";
 import { inventoryApi } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
 
 type ProductStock = Awaited<ReturnType<typeof inventoryApi.getAllStockSummaries>>[number];
 
@@ -12,6 +13,14 @@ export const WarehouseInventoryMonitor: React.FC = () => {
   const [stocks, setStocks] = useState<ProductStock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [stockPage, setStockPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(10);
+
+  const paginatedStocks = useMemo(() => {
+    const start = (stockPage - 1) * stockPageSize;
+    return stocks.slice(start, start + stockPageSize);
+  }, [stocks, stockPage, stockPageSize]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -66,7 +75,7 @@ export const WarehouseInventoryMonitor: React.FC = () => {
               <th className="p-3">Sản phẩm / SKU</th><th className="p-3 text-right">Tồn vật lý</th><th className="p-3 text-right">Đang giữ</th><th className="p-3 text-right">Khả dụng</th><th className="p-3">Phân bổ theo kho</th>
             </tr></thead>
             <tbody className="divide-y divide-neutral-200">
-              {stocks.map((stock) => <tr key={stock.productId}>
+              {paginatedStocks.map((stock) => <tr key={stock.productId}>
                 <td className="p-3"><span className="font-semibold">{stock.productName}</span><span className="block text-neutral-500">{stock.baseSku}</span></td>
                 <td className="p-3 text-right">{stock.totalPhysicalStock.toLocaleString("vi-VN")}</td>
                 <td className="p-3 text-right">{(stock.totalPhysicalStock - stock.availableStock).toLocaleString("vi-VN")}</td>
@@ -77,6 +86,19 @@ export const WarehouseInventoryMonitor: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {stocks.length > 0 && (
+          <Pagination
+            currentPage={stockPage}
+            pageSize={stockPageSize}
+            totalItems={stocks.length}
+            onPageChange={setStockPage}
+            onPageSizeChange={(newSize) => {
+              setStockPageSize(newSize);
+              setStockPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        )}
       </section>
     </div>
   );

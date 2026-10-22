@@ -40,6 +40,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const isVi = language === "vi";
   const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+  const isB2c = user?.role === "B2C_CUSTOMER";
 
   const currentTranslation = getTranslation(product?.translations, language);
 
@@ -98,7 +99,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <Ship className="w-3 h-3" />
                 <span>{isVi ? "Xuất khẩu FOB/CIF" : "FOB/CIF Ready"}</span>
               </span>
-              {bestTier && (
+              {!isB2c && bestTier && (
                 <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-extrabold bg-[#C9252C] text-white rounded-sm shadow-sm">
                   -{bestTier.discountPercentage}% B2B
                 </span>
@@ -172,7 +173,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </span>
               </div>
 
-              {bestTier && (
+              {!isB2c && bestTier && (
                 <div className="mt-1.5 flex items-baseline justify-between text-xs bg-blue-50/70 px-2.5 py-1 border border-[#0E4B94]/25 rounded-sm">
                   <span className="font-semibold text-[#0E4B94]">
                     {t("home.wholesalePrice", { min: bestTier.minQuantity })}
@@ -188,24 +189,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+        <div className={`px-4 pb-4 ${isB2c ? "flex" : "grid grid-cols-2 gap-2"}`}>
           <button
             type="button"
             onClick={() => onAddToCart && onAddToCart(product)}
-            className="flex items-center justify-center gap-1.5 border border-black bg-white py-2 text-xs font-bold text-black hover:bg-black hover:text-white transition-colors"
+            className={`flex items-center justify-center gap-1.5 border border-black bg-white py-2 text-xs font-bold text-black hover:bg-black hover:text-white transition-colors ${
+              isB2c ? "w-full" : ""
+            }`}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
             <span>{t("home.buyRetail")}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => onSelectForRfq && onSelectForRfq(product)}
-            className="flex items-center justify-center gap-1.5 bg-[#0E4B94] py-2 text-xs font-bold text-white hover:bg-[#09356a] transition-colors"
-          >
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>{t("home.quoteB2b")}</span>
-          </button>
+          {!isB2c && (
+            <button
+              type="button"
+              onClick={() => onSelectForRfq && onSelectForRfq(product)}
+              className="flex items-center justify-center gap-1.5 bg-[#0E4B94] py-2 text-xs font-bold text-white hover:bg-[#09356a] transition-colors"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span>{t("home.quoteB2b")}</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -62,6 +62,30 @@ public class IdentityConfigurations :
     }
 }
 
+public class CustomerAddressConfiguration : IEntityTypeConfiguration<CustomerAddress>
+{
+    public void Configure(EntityTypeBuilder<CustomerAddress> builder)
+    {
+        builder.ToTable("CustomerAddresses");
+        builder.HasKey(address => address.Id);
+        builder.Property(address => address.RecipientName).HasMaxLength(150).IsRequired();
+        builder.Property(address => address.PhoneNumber).HasMaxLength(30).IsRequired();
+        builder.Property(address => address.Province).HasMaxLength(100).IsRequired();
+        builder.Property(address => address.District).HasMaxLength(100).IsRequired();
+        builder.Property(address => address.Ward).HasMaxLength(100).IsRequired();
+        builder.Property(address => address.AddressLine).HasMaxLength(300).IsRequired();
+        builder.Property(address => address.CountryCode).HasMaxLength(3).IsRequired();
+        builder.Property(address => address.PostalCode).HasMaxLength(20).IsRequired();
+        builder.HasIndex(address => new { address.UserId, address.IsDefault })
+            .IsUnique()
+            .HasFilter("[IsDefault] = 1");
+        builder.HasOne(address => address.User)
+            .WithMany(user => user.Addresses)
+            .HasForeignKey(address => address.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public class CatalogConfigurations :
     IEntityTypeConfiguration<Category>,
     IEntityTypeConfiguration<CategoryTranslation>,

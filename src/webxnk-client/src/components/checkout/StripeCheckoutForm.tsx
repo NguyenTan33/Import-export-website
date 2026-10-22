@@ -12,7 +12,9 @@ import {
   Truck,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { getRecordCode, getTranslation } from "@/lib/utils";
+import { addressBookApi, CustomerAddress } from "@/services/api";
 
 interface StripeCheckoutFormProps {
   product?: Product;
@@ -37,6 +39,7 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
   onPaymentSuccess,
 }) => {
   const { t, language } = useLanguage();
+  const { user, isAuthenticated } = useAuth();
   const isVi = language === "vi";
 
   const checkoutItems: CartItem[] = useMemo(() => {
@@ -54,13 +57,19 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
   }, [items, product, quantity]);
 
   // Customer & Shipping state
-  const [fullName, setFullName] = useState("Võ Văn Phú");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("phu.vo@example.com");
-  const [phone, setPhone] = useState("+84 901 234 567");
-  const [address, setAddress] = useState("Khu Công Nghệ Cao, TP. Thủ Đức");
-  const [city, setCity] = useState("TP. Hồ Chí Minh");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [ward, setWard] = useState("");
   const [country, setCountry] = useState("Vietnam");
-  const [postalCode, setPostalCode] = useState("700000");
+  const [postalCode, setPostalCode] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState("new");
+  const [saveAddressToBook, setSaveAddressToBook] = useState(false);
+  const [addressError, setAddressError] = useState("");
 
   // Card details state
   const [cardNumber, setCardNumber] = useState("4242 •••• •••• 4242");
@@ -90,6 +99,46 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
     return () => clearInterval(interval);
   }, [checkoutItems]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.isDemo) return;
+    setFullName(user.fullName || "");
+    setPhone(user.phone || "");
+    void addressBookApi.getMine().then((list) => {
+      setSavedAddresses(list);
+      const defaultAddress = list.find((item) => item.isDefault);
+      setSaveAddressToBook(list.length === 0);
+      if (defaultAddress) applySavedAddress(defaultAddress);
+    }).catch(() => {
+      setAddressError(isVi ? "Không thể tải sổ địa chỉ. Bạn vẫn có thể nhập địa chỉ giao hàng." : "Could not load your address book. You can still enter a delivery address.");
+    });
+  // Load when the signed-in account changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id, user?.isDemo]);
+
+  const applySavedAddress = (saved: CustomerAddress) => {
+    setSelectedAddress(String(saved.id));
+    setFullName(saved.recipientName);
+    setPhone(saved.phoneNumber);
+    setAddress(saved.addressLine);
+    setWard(saved.ward);
+    setDistrict(saved.district);
+    setCity(saved.province);
+    setCountry(Object.entries(COUNTRY_ISO_MAP).find(([, code]) => code === saved.countryCode)?.[0] || "Vietnam");
+    setPostalCode(saved.postalCode || "");
+    setSaveAddressToBook(false);
+  };
+
+  const handleAddressSelection = (value: string) => {
+    if (value === "new") {
+      setSelectedAddress("new");
+      setAddress(""); setWard(""); setDistrict(""); setCity(""); setPostalCode("");
+      setSaveAddressToBook(true);
+      return;
+    }
+    const saved = savedAddresses.find((item) => item.id === Number(value));
+    if (saved) applySavedAddress(saved);
+  };
+
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -116,11 +165,23 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
     let stripeIntentId: string | null = null;
 
     try {
+      if (saveAddressToBook && isAuthenticated && user && !user.isDemo) {
+        const saved = await addressBookApi.create({
+          recipientName: fullName.trim(), phoneNumber: phone.trim(), province: city.trim(),
+          district: district.trim(), ward: ward.trim(), addressLine: address.trim(),
+          countryCode: COUNTRY_ISO_MAP[country] || "VNM", postalCode: postalCode.trim(),
+          isDefault: savedAddresses.length === 0,
+        });
+        setSavedAddresses(current => [...current, saved]);
+        setSelectedAddress(String(saved.id));
+        setSaveAddressToBook(false);
+      }
+
       const createdOrder = await ordersApi.createOrder({
         recipientName: fullName,
         recipientPhone: phone,
         destinationCountryCode: COUNTRY_ISO_MAP[country] || "VNM",
-        shippingAddressLine: `${address}, ${city}`,
+        shippingAddressLine: [address, ward, district, city].filter(Boolean).join(", "),
         postalCode,
         currencyCode: "USD",
         items: snapshotItems.map((i) => ({
@@ -145,7 +206,7 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
         }
       }
     } catch {
-      // Graceful fallback when backend is offline
+      // Keep guest checkout available when the backend is temporarily offline.
     }
 
     setCompletedItems(snapshotItems);
@@ -237,6 +298,15 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
           {t("checkout.shippingInfoTitle")}
         </h3>
 
+        {isAuthenticated && user && !user.isDemo && <div className="space-y-2 border-b border-neutral-200 pb-4">
+          <label className="block text-neutral-600 font-bold">{isVi ? "Địa chỉ giao hàng" : "Delivery address"}</label>
+          <select value={selectedAddress} onChange={event => handleAddressSelection(event.target.value)} className="w-full border border-neutral-300 bg-white p-2.5 rounded">
+            <option value="new">{isVi ? "Nhập địa chỉ mới" : "Enter a new address"}</option>
+            {savedAddresses.map((saved, index) => <option key={saved.id ?? `saved-address-${index}`} value={saved.id}>{saved.recipientName} — {saved.addressLine}, {saved.province}{saved.isDefault ? (isVi ? " (Mặc định)" : " (Default)") : ""}</option>)}
+          </select>
+          {addressError && <p role="alert" className="text-xs text-amber-700">{addressError}</p>}
+        </div>}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
           <div>
             <label className="block text-neutral-600 mb-1 font-bold">
@@ -310,7 +380,7 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
 
           <div>
             <label className="block text-neutral-600 mb-1 font-bold">
-              {t("checkout.city")} *
+              {isVi ? "Tỉnh/Thành phố" : "Province/City"} *
             </label>
             <input
               type="text"
@@ -319,6 +389,16 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
               onChange={(e) => setCity(e.target.value)}
               className="w-full border border-neutral-300 p-2.5 rounded focus:outline-none focus:border-black"
             />
+          </div>
+
+          <div>
+            <label className="block text-neutral-600 mb-1 font-bold">{isVi ? "Quận/Huyện" : "District"} *</label>
+            <input type="text" required value={district} onChange={e => setDistrict(e.target.value)} className="w-full border border-neutral-300 p-2.5 rounded focus:outline-none focus:border-black" />
+          </div>
+
+          <div>
+            <label className="block text-neutral-600 mb-1 font-bold">{isVi ? "Phường/Xã" : "Ward/Commune"} *</label>
+            <input type="text" required value={ward} onChange={e => setWard(e.target.value)} className="w-full border border-neutral-300 p-2.5 rounded focus:outline-none focus:border-black" />
           </div>
 
           <div>
@@ -333,6 +413,7 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
               className="w-full border border-neutral-300 p-2.5 rounded focus:outline-none focus:border-black"
             />
           </div>
+          {isAuthenticated && user && !user.isDemo && selectedAddress === "new" && <label className="sm:col-span-2 flex items-center gap-2 text-xs font-semibold text-neutral-700"><input type="checkbox" checked={saveAddressToBook} onChange={e => setSaveAddressToBook(e.target.checked)} />{isVi ? "Lưu địa chỉ này vào Sổ địa chỉ" : "Save this address to my address book"}</label>}
         </div>
       </div>
 

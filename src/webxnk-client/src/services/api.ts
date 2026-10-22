@@ -87,6 +87,21 @@ export interface RfqHistoryEntry {
   createdAt: string;
 }
 
+export interface CustomerAddress {
+  id: number;
+  recipientName: string;
+  phoneNumber: string;
+  province: string;
+  district: string;
+  ward: string;
+  addressLine: string;
+  countryCode: string;
+  postalCode: string;
+  isDefault: boolean;
+}
+
+export type SaveCustomerAddressRequest = Omit<CustomerAddress, "id">;
+
 export interface ProductWriteRequest {
   categoryId: number;
   baseSku: string;
@@ -319,6 +334,13 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+    // Critical: When data is FormData, remove Content-Type so Axios & browser can set multipart/form-data with the correct boundary!
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+      if (typeof (config.headers as Record<string, unknown>).delete === "function") {
+        (config.headers as { delete: (name: string) => void }).delete("Content-Type");
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -424,6 +446,19 @@ export const clientCache = {
   },
 };
 
+export const PRODUCT_CATALOG_UPDATED_EVENT = "webxnk-catalog-updated";
+
+export const notifyCatalogUpdated = () => {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("webxnk_catalog_updated", Date.now().toString());
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent(PRODUCT_CATALOG_UPDATED_EVENT));
+  }
+};
+
 // 1. Catalog & Product Services
 export const catalogApi = {
   getAdminProducts: async (languageCode = "vi"): Promise<Product[]> => {
@@ -431,7 +466,7 @@ export const catalogApi = {
     const response = await apiClient.get<ProductApiRecord[]>(
       "/products/admin/all",
       {
-        params: { pageIndex: 1, pageSize: 100, includeInactive: true },
+        params: { pageIndex: 1, pageSize: 100, includeInactive: true, _t: Date.now() },
         headers: { "X-Language": languageCode },
       },
     );
@@ -446,14 +481,23 @@ export const catalogApi = {
     keyword?: string,
     languageCode = "vi",
     pageSize = 100,
+    forceRefresh = false,
   ): Promise<Product[]> => {
     const cacheKey = `products_${categoryId ?? "all"}_${keyword ?? "none"}_${languageCode}_${pageSize}`;
-    const cached = clientCache.get<Product[]>(cacheKey, 60 * 1000); // 60s cache
-    if (cached) return cached;
+    if (!forceRefresh) {
+      const cached = clientCache.get<Product[]>(cacheKey, 30 * 1000); // 30s cache
+      if (cached) return cached;
+    }
 
     try {
       const response = await apiClient.get<ProductApiRecord[]>("/products", {
-        params: { categoryId, searchKeyword: keyword, pageSize, pageIndex: 1 },
+        params: {
+          categoryId,
+          searchKeyword: keyword,
+          pageSize,
+          pageIndex: 1,
+          _t: forceRefresh ? Date.now() : undefined,
+        },
         headers: { "X-Language": languageCode },
       });
       const items = Array.isArray(response.data)
@@ -536,6 +580,7 @@ export const catalogApi = {
   createProduct: async (data: ProductWriteRequest): Promise<Product> => {
     const response = await apiClient.post<ProductApiRecord>("/products", data);
     clientCache.clear(); // Xóa sạch cache
+    notifyCatalogUpdated();
     return normalizeProduct(response.data);
   },
   createProductWithImages: async (
@@ -560,6 +605,7 @@ export const catalogApi = {
       },
     );
     clientCache.clear(); // Xóa sạch cache
+    notifyCatalogUpdated();
     return normalizeProduct(response.data);
   },
   updateProduct: async (
@@ -570,14 +616,15 @@ export const catalogApi = {
       `/products/${id}`,
       data,
     );
-    clientCache.clear("products_");
-    clientCache.clear(`product_${id}_`);
+    clientCache.clear();
+    notifyCatalogUpdated();
     return normalizeProduct(response.data);
   },
   deleteProduct: async (id: number): Promise<void> => {
     await apiClient.delete(`/products/${id}`);
     // Xóa toàn bộ cache sản phẩm và danh mục để ép ứng dụng fetch mới
     clientCache.clear();
+    notifyCatalogUpdated();
   },
   uploadProductImages: async (id: number, files: File[]): Promise<string[]> => {
     const formData = new FormData();
@@ -586,14 +633,13 @@ export const catalogApi = {
       `/products/${id}/images`,
       formData,
       {
-        // Let the browser/Axios add the multipart boundary. A manually supplied
-        // Content-Type can leave the boundary out and make ASP.NET see no files.
         timeout: 30000,
       },
     );
     clientCache.clear("products_");
     clientCache.clear(`product_${id}_`);
-    return response.data.imageUrls || [];
+    notifyCatalogUpdated();
+    return response.data?.imageUrls || [];
   },
   uploadProductImage: async (
     id: number,
@@ -602,19 +648,18 @@ export const catalogApi = {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await apiClient.post<Product>(
+      formData.append("files", file);
+      const response = await apiClient.post<ProductApiRecord>(
         `/products/${id}/upload-image`,
         formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 10000,
+          timeout: 30000,
         },
       );
       clientCache.clear("products_");
       clientCache.clear(`product_${id}`);
-      return response.data;
+      notifyCatalogUpdated();
+      return response.data ? normalizeProduct(response.data) : null;
     } catch {
       return null;
     }
@@ -624,12 +669,13 @@ export const catalogApi = {
     imageUrl: string,
   ): Promise<Product | null> => {
     try {
-      const response = await apiClient.put<Product>(`/products/${id}/image`, {
+      const response = await apiClient.put<ProductApiRecord>(`/products/${id}/image`, {
         imageUrl,
       });
       clientCache.clear("products_");
       clientCache.clear(`product_${id}_`);
-      return response.data;
+      notifyCatalogUpdated();
+      return response.data ? normalizeProduct(response.data) : null;
     } catch {
       return null;
     }
@@ -976,6 +1022,24 @@ export const documentsApi = {
 };
 
 // 6. Orders Services (EXP-39 - OrdersController)
+export const addressBookApi = {
+  getMine: async (): Promise<CustomerAddress[]> => {
+    const response = await apiClient.get<CustomerAddress[]>("/customeraddresses");
+    return Array.isArray(response.data) ? response.data.filter(Boolean) : [];
+  },
+  create: async (address: SaveCustomerAddressRequest): Promise<CustomerAddress> => {
+    const response = await apiClient.post<CustomerAddress>("/customeraddresses", address);
+    return response.data;
+  },
+  update: async (id: number, address: SaveCustomerAddressRequest): Promise<CustomerAddress> => {
+    const response = await apiClient.put<CustomerAddress>(`/customeraddresses/${id}`, address);
+    return response.data;
+  },
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/customeraddresses/${id}`);
+  },
+};
+
 export const ordersApi = {
   createOrder: async (data: {
     recipientName: string;

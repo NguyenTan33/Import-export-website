@@ -21,6 +21,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { getProductImageUrl } from "@/utils/productImages";
 import { getTranslation } from "@/lib/utils";
+import { Pagination } from "@/components/common/Pagination";
 
 type ProductForm = {
   nameVi: string;
@@ -66,6 +67,8 @@ export const ProductManagementPanel: React.FC = () => {
   const [stockByProduct, setStockByProduct] = useState<
     Record<number, StockSummary>
   >({});
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -76,7 +79,34 @@ export const ProductManagementPanel: React.FC = () => {
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<
+    { file: File; previewUrl: string }[]
+  >([]);
   const [fileSelectionError, setFileSelectionError] = useState(false);
+
+  const clearFilePreviews = useCallback(() => {
+    filePreviews.forEach((item) => {
+      try {
+        URL.revokeObjectURL(item.previewUrl);
+      } catch {
+        // ignore
+      }
+    });
+    setFilePreviews([]);
+    setFiles([]);
+  }, [filePreviews]);
+
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((item) => {
+        try {
+          URL.revokeObjectURL(item.previewUrl);
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }, [filePreviews]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -127,10 +157,14 @@ export const ProductManagementPanel: React.FC = () => {
     [categories, language],
   );
 
+  const paginatedProducts = useMemo(() => {
+    return products.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [products, currentPage, pageSize]);
+
   const beginCreate = () => {
     setEditing(null);
     setForm({ ...emptyForm, categoryId: categories[0]?.id || 0 });
-    setFiles([]);
+    clearFilePreviews();
     setFileSelectionError(false);
     setUploadProgress(0);
     setError("");
@@ -141,6 +175,7 @@ export const ProductManagementPanel: React.FC = () => {
   const beginEdit = async (product: Product) => {
     setSaving(true);
     setError("");
+    clearFilePreviews();
     try {
       const detail = await catalogApi.getAdminProductById(product.id, language);
       if (!detail) throw new Error("Product not found");
@@ -196,7 +231,6 @@ export const ProductManagementPanel: React.FC = () => {
       return file.size > 5 * 1024 * 1024 || !allowedExtensions.has(extension);
     });
     if (invalidFile) {
-      setFiles([]);
       setFileSelectionError(true);
       setError(
         isVi
@@ -207,7 +241,29 @@ export const ProductManagementPanel: React.FC = () => {
     }
     setFileSelectionError(false);
     setError("");
-    setFiles(selectedFiles);
+
+    const newPreviews = selectedFiles.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setFilePreviews((prev) => [...prev, ...newPreviews]);
+    setFiles((prev) => [...prev, ...selectedFiles]);
+  };
+
+  const removeFileAtIndex = (index: number) => {
+    setFilePreviews((prev) => {
+      const target = prev[index];
+      if (target) {
+        try {
+          URL.revokeObjectURL(target.previewUrl);
+        } catch {
+          // ignore
+        }
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const productPayload = (imageUrls: string[]): ProductWriteRequest => ({
@@ -364,6 +420,7 @@ export const ProductManagementPanel: React.FC = () => {
       }
 
       await reconcileStock(saved.id);
+      clearFilePreviews();
       setModalOpen(false);
       setNotice(
         isVi
@@ -497,7 +554,7 @@ export const ProductManagementPanel: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              products.map((product, index) => {
+              paginatedProducts.map((product, index) => {
                 const name =
                   getTranslation(product?.translations, language)?.name ||
                   product.baseSku;
@@ -553,6 +610,22 @@ export const ProductManagementPanel: React.FC = () => {
             )}
           </tbody>
         </table>
+
+        {products.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={products.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+            isVi={isVi}
+            itemLabel={isVi ? "sản phẩm" : "products"}
+          />
+        )}
       </div>
 
       {modalOpen && (
@@ -698,51 +771,137 @@ export const ProductManagementPanel: React.FC = () => {
                 />
               </label>
             </div>
-            <div className="space-y-2 border-t pt-4">
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-slate-300 px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                <ImagePlus className="h-4 w-4" />
-                {isVi
-                  ? "Chọn ảnh (tối đa 5MB/ảnh)"
-                  : "Select images (up to 5MB each)"}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(event) =>
-                    handleFilesSelected(Array.from(event.target.files || []))
-                  }
-                />
-              </label>
-              {files.length > 0 && (
-                <p className="text-xs text-slate-500">
-                  {files.map((file) => file.name).join(", ")}
-                </p>
-              )}
-              {form.imageUrls.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {form.imageUrls.map((url, index) => (
-                    <div key={`${url}-${index}`} className="relative">
-                      <img
-                        src={url}
-                        alt="Product"
-                        className="h-16 w-20 rounded border object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setField(
-                            "imageUrls",
-                            form.imageUrls.filter((image) => image !== url),
-                          )
-                        }
-                        className="absolute -right-2 -top-2 rounded-full bg-white p-0.5 text-red-600 shadow"
-                        aria-label={isVi ? "Xóa ảnh" : "Remove image"}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="block text-xs font-bold uppercase text-slate-700">
+                    {isVi ? "Hình ảnh sản phẩm" : "Product images"}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {isVi
+                      ? "Hỗ trợ JPG, PNG, WEBP tối đa 5MB/ảnh. Có thể chọn nhiều ảnh cùng lúc."
+                      : "Supports JPG, PNG, WEBP up to 5MB/file. Multiple files supported."}
+                  </span>
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-[#0E4B94] bg-blue-50 px-3 py-2 text-xs font-bold text-[#0E4B94] hover:bg-blue-100 transition-colors shadow-sm">
+                  <ImagePlus className="h-4 w-4" />
+                  <span>
+                    {isVi ? "+ Chọn ảnh từ máy" : "+ Select files from device"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      handleFilesSelected(Array.from(event.target.files || []));
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+
+              {/* Hiển thị danh sách ảnh mới chọn dạng thumbnail trực quan */}
+              {filePreviews.length > 0 && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#0E4B94] flex items-center gap-1.5">
+                      <span className="flex h-2 w-2 rounded-full bg-[#0E4B94]"></span>
+                      {isVi
+                        ? `Ảnh mới chọn tải lên (${filePreviews.length} ảnh):`
+                        : `Selected images to upload (${filePreviews.length}):`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearFilePreviews}
+                      className="text-[11px] font-semibold text-red-600 hover:underline"
+                    >
+                      {isVi ? "Xóa tất cả ảnh đã chọn" : "Clear all selected"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {filePreviews.map((item, index) => (
+                      <div
+                        key={`${item.file.name}-${index}`}
+                        className="group relative rounded-lg border border-slate-300 bg-white overflow-hidden shadow-sm hover:border-[#0E4B94] transition-all"
                       >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="relative aspect-video w-full bg-slate-100">
+                          <img
+                            src={item.previewUrl}
+                            alt={item.file.name}
+                            className="h-full w-full object-cover"
+                          />
+                          {index === 0 && form.imageUrls.length === 0 && (
+                            <span className="absolute top-1 left-1 bg-[#0E4B94] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
+                              {isVi ? "Ảnh chính" : "Primary"}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeFileAtIndex(index)}
+                            className="absolute top-1 right-1 rounded-full bg-red-600 text-white p-1 hover:bg-red-700 shadow transition-transform hover:scale-110"
+                            title={isVi ? "Xóa ảnh này" : "Remove this image"}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-2 text-[10px] text-slate-600 border-t bg-slate-50">
+                          <p className="truncate font-semibold text-slate-800" title={item.file.name}>
+                            {item.file.name}
+                          </p>
+                          <p className="text-slate-500 font-mono mt-0.5">
+                            {(item.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hiển thị danh sách ảnh hiện có trên hệ thống (nếu đang sửa) */}
+              {form.imageUrls.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <span className="text-xs font-bold text-slate-700 block">
+                    {isVi
+                      ? `Ảnh hiện có trên hệ thống (${form.imageUrls.length} ảnh):`
+                      : `Existing system images (${form.imageUrls.length}):`}
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {form.imageUrls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className="relative rounded-lg border border-slate-300 bg-white overflow-hidden shadow-sm"
+                      >
+                        <div className="relative aspect-video w-full bg-slate-100">
+                          <img
+                            src={url}
+                            alt="Product"
+                            className="h-full w-full object-cover"
+                          />
+                          {index === 0 && (
+                            <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
+                              {isVi ? "Ảnh đại diện" : "Thumbnail"}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setField(
+                                "imageUrls",
+                                form.imageUrls.filter((image) => image !== url),
+                              )
+                            }
+                            className="absolute top-1 right-1 rounded-full bg-red-600 text-white p-1 hover:bg-red-700 shadow"
+                            title={isVi ? "Xóa ảnh này" : "Remove this image"}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

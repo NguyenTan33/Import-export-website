@@ -1,9 +1,10 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
 import { RfqForm } from "@/components/portal/RfqForm";
+import { Pagination } from "@/components/common/Pagination";
 import {
   Product,
   RfqRequestDto,
@@ -82,6 +83,8 @@ function PortalContent() {
   const isVi = language === "vi";
 
   const [rfqs, setRfqs] = useState<RfqRequestDto[]>([]);
+  const [rfqPage, setRfqPage] = useState<number>(1);
+  const [rfqPageSize, setRfqPageSize] = useState<number>(5);
 
   // B2B T/T & L/C Payment Slip State
   const [selectedPaymentRfqId, setSelectedPaymentRfqId] = useState<number>(0);
@@ -94,6 +97,8 @@ function PortalContent() {
   const [isUploadingSlip, setIsUploadingSlip] = useState<boolean>(false);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
   const [paymentSlips, setPaymentSlips] = useState<B2BPaymentSlip[]>([]);
+  const [slipPage, setSlipPage] = useState<number>(1);
+  const [slipPageSize, setSlipPageSize] = useState<number>(5);
 
   useEffect(() => {
     let cancelled = false;
@@ -381,6 +386,54 @@ function PortalContent() {
     }
   };
 
+  const paginatedRfqs = useMemo(() => {
+    return rfqs.slice(
+      (rfqPage - 1) * rfqPageSize,
+      rfqPage * rfqPageSize
+    );
+  }, [rfqs, rfqPage, rfqPageSize]);
+
+  const paginatedSlips = useMemo(() => {
+    return paymentSlips.slice(
+      (slipPage - 1) * slipPageSize,
+      slipPage * slipPageSize
+    );
+  }, [paymentSlips, slipPage, slipPageSize]);
+
+  if (user?.role === "B2C_CUSTOMER") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 bg-blue-50 text-[#0E4B94] rounded-2xl flex items-center justify-center mx-auto border border-blue-200">
+          <FileText className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isVi ? "Cổng Báo Giá B2B dành cho Doanh Nghiệp" : "B2B Portal is for Corporate Accounts"}
+          </h1>
+          <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+            {isVi 
+              ? "Bạn hiện đang đăng nhập bằng tài khoản Khách Mua Lẻ (B2C). Tính năng tạo yêu cầu báo giá sỉ RFQ, đàm phán hợp đồng quốc tế và nộp ủy nhiệm chi chỉ áp dụng cho tài khoản Doanh nghiệp B2B."
+              : "You are currently signed in as a Retail Customer (B2C). Wholesale RFQs, trade contract negotiation, and wire slip submissions are restricted to B2B Corporate Accounts."}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-xl bg-[#0E4B94] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#0a376d] transition-all shadow-md"
+          >
+            {isVi ? "Quay lại Cửa hàng" : "Browse Retail Store"}
+          </Link>
+          <Link
+            href="/profile"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-200 transition-all border border-slate-300"
+          >
+            {isVi ? "Hồ sơ của tôi" : "My Profile"}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
@@ -468,12 +521,10 @@ function PortalContent() {
                 availableProducts={availableProducts}
                 onSubmitRfq={handleCreateRfq}
                 isSubmitting={isSubmitting}
-                canSubmit={isAuthenticated && !isAuthLoading && user?.role !== "B2C_CUSTOMER" && !user?.isDemo}
+                canSubmit={isAuthenticated && !isAuthLoading && !user?.isDemo}
                 submissionPrompt={user?.isDemo
                   ? (isVi ? "Tài khoản dùng thử không đăng nhập được vào máy chủ. Hãy đăng nhập bằng tài khoản B2B đã đăng ký." : "Demo accounts cannot authenticate with the server. Sign in with a registered B2B account.")
-                  : isAuthenticated && user?.role === "B2C_CUSTOMER"
-                    ? (isVi ? "RFQ yêu cầu tài khoản doanh nghiệp." : "RFQs require a business account.")
-                    : undefined}
+                  : undefined}
                 authHref={isAuthenticated ? "/register" : "/login?returnTo=%2Fportal"}
                 initialProductId={initialProductIdParam}
                 initialQuantity={initialQuantityParam}
@@ -591,7 +642,7 @@ function PortalContent() {
           ) : null}
 
           <div className="space-y-4">
-            {rfqs.map((rfq, index) => (
+            {paginatedRfqs.map((rfq, index) => (
               <div key={rfq.id ?? rfq.rfqNumber ?? `rfq-${index}`} className="border border-black p-4 bg-white space-y-3 shadow-sm hover:border-[#0E4B94] transition-colors rounded">
                 <div className="flex flex-wrap items-start justify-between gap-2 border-b border-neutral-200 pb-2">
                   <div>
@@ -731,6 +782,24 @@ function PortalContent() {
                 </div>
               </div>
             ))}
+
+            {rfqs.length > 0 && (
+              <div className="border border-neutral-200 rounded overflow-hidden shadow-sm">
+                <Pagination
+                  currentPage={rfqPage}
+                  totalItems={rfqs.length}
+                  pageSize={rfqPageSize}
+                  onPageChange={setRfqPage}
+                  onPageSizeChange={(newSize) => {
+                    setRfqPageSize(newSize);
+                    setRfqPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                  isVi={isVi}
+                  itemLabel={isVi ? "yêu cầu RFQ" : "RFQs"}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -924,7 +993,7 @@ function PortalContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {paymentSlips.map((slip, index) => (
+                  {paginatedSlips.map((slip, index) => (
                     <tr key={slip.id ?? `${slip.rfqId}-${index}`} className="hover:bg-neutral-50">
                       <td className="py-3 px-3">
                         <div className="font-bold text-[#0E4B94]">
@@ -972,6 +1041,22 @@ function PortalContent() {
                   ))}
                 </tbody>
               </table>
+
+              {paymentSlips.length > 0 && (
+                <Pagination
+                  currentPage={slipPage}
+                  totalItems={paymentSlips.length}
+                  pageSize={slipPageSize}
+                  onPageChange={setSlipPage}
+                  onPageSizeChange={(newSize) => {
+                    setSlipPageSize(newSize);
+                    setSlipPage(1);
+                  }}
+                  pageSizeOptions={[5, 10, 20]}
+                  isVi={isVi}
+                  itemLabel={isVi ? "giao dịch" : "records"}
+                />
+              )}
             </div>
           </div>
         </div>

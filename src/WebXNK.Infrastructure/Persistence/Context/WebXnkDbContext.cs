@@ -15,6 +15,7 @@ public class WebXnkDbContext : DbContext, IApplicationDbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Company> Companies => Set<Company>();
+    public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
 
     // Catalog & Packaging
     public DbSet<Category> Categories => Set<Category>();

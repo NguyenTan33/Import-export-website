@@ -4,9 +4,13 @@ import React from "react";
 import Link from "next/link";
 import { ShieldCheck, Anchor, Truck, FileCheck } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 export const Footer: React.FC = () => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isB2c = user?.role === "B2C_CUSTOMER";
+  const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
 
   return (
     <footer className="w-full bg-black text-white border-t border-neutral-800 mt-20">
@@ -81,18 +85,22 @@ export const Footer: React.FC = () => {
           <Link href="/" className="hover:text-white transition-colors">
             {t("nav.catalog")}
           </Link>
-          <Link href="/portal" className="hover:text-white transition-colors">
-            {t("nav.portal")}
-          </Link>
+          {!isB2c && (
+            <Link href="/portal" className="hover:text-white transition-colors">
+              {t("nav.portal")}
+            </Link>
+          )}
           <Link href="/tracking" className="hover:text-white transition-colors text-[#3b82f6] font-semibold">
             {t("nav.tracking")}
           </Link>
           <Link href="/cbm-calculator" className="hover:text-white transition-colors">
             {t("nav.cbm")}
           </Link>
-          <Link href="/admin" className="hover:text-white transition-colors">
-            {t("nav.admin")}
-          </Link>
+          {isAdmin && (
+            <Link href="/admin" className="hover:text-white transition-colors">
+              {t("nav.admin")}
+            </Link>
+          )}
         </div>
       </div>
 

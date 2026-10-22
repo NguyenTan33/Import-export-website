@@ -42,6 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { totalItemsCount, setIsCartOpen } = useCart();
   const canAccessAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+  const isB2c = user?.role === "B2C_CUSTOMER";
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/" || pathname?.startsWith("/product");
@@ -102,10 +103,12 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart }) => {
               <Link href="/" className={navLinkClass("/")}>
                 <span>{t("nav.catalog")}</span>
               </Link>
-              <Link href="/portal" className={navLinkClass("/portal")}>
-                <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive("/portal") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
-                <span>{t("nav.portal")}</span>
-              </Link>
+              {!isB2c && (
+                <Link href="/portal" className={navLinkClass("/portal")}>
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive("/portal") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
+                  <span>{t("nav.portal")}</span>
+                </Link>
+              )}
               <Link href="/tracking" className={navLinkClass("/tracking")}>
                 <Ship className={`w-3.5 h-3.5 shrink-0 ${isActive("/tracking") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
                 <span>{t("nav.tracking")}</span>
@@ -266,13 +269,15 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart }) => {
             </button>
 
             {/* B2B Buyer Quick Quote CTA */}
-            <Link
-              href="/portal"
-              className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm shrink-0 whitespace-nowrap"
-            >
-              <span>{t("nav.rfqQuoteBtn")}</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
+            {!isB2c && (
+              <Link
+                href="/portal"
+                className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm shrink-0 whitespace-nowrap"
+              >
+                <span>{t("nav.rfqQuoteBtn")}</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -352,14 +357,16 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart }) => {
                 <Package className="w-4 h-4 text-[#0E4B94]" />
                 {t("nav.catalog")}
               </Link>
-              <Link
-                href="/portal"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-[#0E4B94]" />
-                {t("nav.portal")}
-              </Link>
+              {!isB2c && (
+                <Link
+                  href="/portal"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <FileText className="w-4 h-4 text-[#0E4B94]" />
+                  {t("nav.portal")}
+                </Link>
+              )}
               <Link
                 href="/tracking"
                 onClick={() => setMobileMenuOpen(false)}

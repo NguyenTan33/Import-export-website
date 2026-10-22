@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Package, 
   Ship, 
@@ -12,6 +12,7 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { ordersApi } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
 
 interface AdminOrder {
   dbId?: number;
@@ -34,6 +35,8 @@ export const OrderManagementPanel: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [newStatus, setNewStatus] = useState<AdminOrder["status"]>("PACKING");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -67,6 +70,17 @@ export const OrderManagementPanel: React.FC = () => {
     const matchStatus = statusFilter === "ALL" || o.status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const paginatedOrders = useMemo(() => {
+    return filteredOrders.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    );
+  }, [filteredOrders, currentPage, pageSize]);
 
   const handleUpdateStatus = async () => {
     if (!selectedOrder) return;
@@ -154,7 +168,7 @@ export const OrderManagementPanel: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order, index) => (
+                paginatedOrders.map((order, index) => (
                   <tr key={order.id ?? `order-${index}`} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
                       {order.id}
@@ -222,6 +236,22 @@ export const OrderManagementPanel: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredOrders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredOrders.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+            isVi={isVi}
+            itemLabel={isVi ? "đơn hàng" : "orders"}
+          />
+        )}
       </div>
 
       {/* Modal Cập nhật Trạng Thái Đơn Hàng */}

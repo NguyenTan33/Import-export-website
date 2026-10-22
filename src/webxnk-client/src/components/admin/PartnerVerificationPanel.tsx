@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Building,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { adminApi, paymentsApi } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
 
 interface PendingCompany {
   id: number;
@@ -49,7 +50,13 @@ export const PartnerVerificationPanel: React.FC = () => {
   const isVi = language === "vi";
 
   const [companies, setCompanies] = useState<PendingCompany[]>([]);
+  const [companyPage, setCompanyPage] = useState<number>(1);
+  const [companyPageSize, setCompanyPageSize] = useState<number>(6);
+
   const [bankSlips, setBankSlips] = useState<PendingBankSlip[]>([]);
+  const [slipPage, setSlipPage] = useState<number>(1);
+  const [slipPageSize, setSlipPageSize] = useState<number>(10);
+
   const [notification, setNotification] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -162,6 +169,20 @@ export const PartnerVerificationPanel: React.FC = () => {
     setTimeout(() => setNotification(null), 5000);
   };
 
+  const paginatedCompanies = useMemo(() => {
+    return companies.slice(
+      (companyPage - 1) * companyPageSize,
+      companyPage * companyPageSize
+    );
+  }, [companies, companyPage, companyPageSize]);
+
+  const paginatedBankSlips = useMemo(() => {
+    return bankSlips.slice(
+      (slipPage - 1) * slipPageSize,
+      slipPage * slipPageSize
+    );
+  }, [bankSlips, slipPage, slipPageSize]);
+
   return (
     <div className="space-y-8">
       {loadError && <div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</div>}
@@ -193,7 +214,7 @@ export const PartnerVerificationPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {companies.map((comp, index) => (
+          {paginatedCompanies.map((comp, index) => (
             <div
               key={comp.id ?? comp.companyName ?? `company-${index}`}
               className={`bg-white rounded-xl p-5 border shadow-sm space-y-3 transition-all ${
@@ -268,6 +289,24 @@ export const PartnerVerificationPanel: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {companies.length > 0 && (
+          <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <Pagination
+              currentPage={companyPage}
+              totalItems={companies.length}
+              pageSize={companyPageSize}
+              onPageChange={setCompanyPage}
+              onPageSizeChange={(newSize) => {
+                setCompanyPageSize(newSize);
+                setCompanyPage(1);
+              }}
+              pageSizeOptions={[6, 12, 24]}
+              isVi={isVi}
+              itemLabel={isVi ? "doanh nghiệp" : "companies"}
+            />
+          </div>
+        )}
       </div>
 
       {/* SECTION 2: THẨM ĐỊNH ỦY NHIỆM CHI T/T ĐẶT CỌC 30% */}
@@ -302,7 +341,7 @@ export const PartnerVerificationPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {bankSlips.map((slip, index) => (
+              {paginatedBankSlips.map((slip, index) => (
                 <tr key={slip.id ?? `${slip.rfqId}-${index}`} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <span className="font-mono font-bold text-[#0E4B94] block">{slip.rfqId}</span>
@@ -382,6 +421,22 @@ export const PartnerVerificationPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+
+          {bankSlips.length > 0 && (
+            <Pagination
+              currentPage={slipPage}
+              totalItems={bankSlips.length}
+              pageSize={slipPageSize}
+              onPageChange={setSlipPage}
+              onPageSizeChange={(newSize) => {
+                setSlipPageSize(newSize);
+                setSlipPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20]}
+              isVi={isVi}
+              itemLabel={isVi ? "chứng từ" : "wire slips"}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { getTranslation } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { getProductImageUrl } from "@/utils/productImages";
@@ -33,7 +34,9 @@ function CheckoutContent() {
   const [loading, setLoading] = useState<boolean>(true);
   const { formatPrice, currency, rates } = useCurrency();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const isVi = language === "vi";
+  const isB2c = user?.role === "B2C_CUSTOMER";
 
   useEffect(() => {
     // If checking out from Cart (no explicit productId param) and cart has items, no need to block on single product fetch
@@ -321,13 +324,19 @@ function CheckoutContent() {
               <HelpCircle className="h-5 w-5 text-neutral-500 shrink-0" />
               <div>
                 <span>
-                  {isVi
-                    ? "Cần hỗ trợ hợp đồng B2B hoặc thanh toán L/C?"
-                    : "Need corporate B2B contracts or Letter of Credit (L/C)?"}
+                  {isB2c
+                    ? (isVi ? "Cần hỗ trợ về đơn hàng hoặc thanh toán thẻ?" : "Need help with your order or card payment?")
+                    : (isVi ? "Cần hỗ trợ hợp đồng B2B hoặc thanh toán L/C?" : "Need corporate B2B contracts or Letter of Credit (L/C)?")}
                 </span>
-                <Link href="/portal" className="block text-[#0E4B94] font-bold hover:underline">
-                  {isVi ? "Chuyển sang Cổng B2B RFQ →" : "Switch to B2B RFQ Portal →"}
-                </Link>
+                {!isB2c ? (
+                  <Link href="/portal" className="block text-[#0E4B94] font-bold hover:underline">
+                    {isVi ? "Chuyển sang Cổng B2B RFQ →" : "Switch to B2B RFQ Portal →"}
+                  </Link>
+                ) : (
+                  <span className="block text-slate-700 font-semibold mt-0.5">
+                    Hotline: 0903 888 999 · Email: support@quangtanhoang.com
+                  </span>
+                )}
               </div>
             </div>
           </div>

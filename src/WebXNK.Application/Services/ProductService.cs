@@ -23,7 +23,8 @@ public class ProductService : IProductService
     {
         var lang = string.IsNullOrWhiteSpace(filter.LanguageCode) ? "vi" : filter.LanguageCode.ToLowerInvariant();
 
-        bool isDefaultCatalog = !filter.CategoryId.HasValue 
+        bool isDefaultCatalog = !filter.IncludeInactive
+            && !filter.CategoryId.HasValue 
             && string.IsNullOrWhiteSpace(filter.HsCode) 
             && !filter.MinPrice.HasValue 
             && !filter.MaxPrice.HasValue 
@@ -429,7 +430,7 @@ public class ProductService : IProductService
         foreach (var lang in new[] { "vi", "en" })
         {
             _cache.Remove($"Product_Detail_{productId}_{lang}");
-            foreach (var pageSize in new[] { 6, 10, 12, 20, 50 })
+            foreach (var pageSize in new[] { 6, 8, 10, 12, 16, 20, 24, 50, 100, 200 })
             {
                 _cache.Remove($"Products_Catalog_{lang}_{pageSize}");
             }

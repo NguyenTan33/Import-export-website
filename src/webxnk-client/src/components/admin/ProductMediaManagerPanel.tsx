@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Product } from "@/types";
-import { catalogApi } from "@/services/api";
+import { catalogApi, PRODUCT_CATALOG_UPDATED_EVENT } from "@/services/api";
 import {
   Camera,
   RotateCcw,
@@ -25,6 +25,7 @@ import {
   PRODUCT_IMAGE_UPDATED_EVENT,
 } from "@/utils/productImages";
 import { ProductImageEditModal } from "@/components/admin/ProductImageEditModal";
+import { Pagination } from "@/components/common/Pagination";
 
 const FALLBACK_PRODUCTS: Product[] = [
   {
@@ -167,6 +168,8 @@ export const ProductMediaManagerPanel: React.FC = () => {
   const isVi = language === "vi";
 
   const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(6);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [toastMsg, setToastMsg] = useState<string>("");
   const [, setRefreshTick] = useState<number>(0);
@@ -174,18 +177,41 @@ export const ProductMediaManagerPanel: React.FC = () => {
   const quickFileInputRef = useRef<HTMLInputElement | null>(null);
   const [quickTargetProduct, setQuickTargetProduct] = useState<Product | null>(null);
 
-  useEffect(() => {
-    catalogApi
-      .getProducts()
-      .then((res) => {
-        if (res && res.length > 0) setProducts(res);
-      })
-      .catch(() => {});
+  const loadMediaProducts = useCallback(async () => {
+    try {
+      const res = await catalogApi.getAdminProducts(language);
+      if (res && res.length > 0) {
+        setProducts(res);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const publicProds = await catalogApi.getProducts(undefined, undefined, language, 100, true);
+      if (publicProds && publicProds.length > 0) {
+        setProducts(publicProds);
+      }
+    } catch {
+      // fallback
+    }
+  }, [language]);
 
-    const onUpdated = () => setRefreshTick((t) => t + 1);
+  useEffect(() => {
+    loadMediaProducts();
+
+    const onUpdated = () => {
+      setRefreshTick((t) => t + 1);
+      loadMediaProducts();
+    };
+
     window.addEventListener(PRODUCT_IMAGE_UPDATED_EVENT, onUpdated);
-    return () => window.removeEventListener(PRODUCT_IMAGE_UPDATED_EVENT, onUpdated);
-  }, []);
+    window.addEventListener(PRODUCT_CATALOG_UPDATED_EVENT, onUpdated);
+    return () => {
+      window.removeEventListener(PRODUCT_IMAGE_UPDATED_EVENT, onUpdated);
+      window.removeEventListener(PRODUCT_CATALOG_UPDATED_EVENT, onUpdated);
+    };
+  }, [loadMediaProducts]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -235,6 +261,13 @@ export const ProductMediaManagerPanel: React.FC = () => {
     );
   };
 
+  const paginatedProducts = useMemo(() => {
+    return (Array.isArray(products) ? products : []).slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    );
+  }, [products, currentPage, pageSize]);
+
   return (
     <div className="space-y-6">
       {/* Hidden input for 1-click direct file selection from Laptop/PC */}
@@ -276,7 +309,7 @@ export const ProductMediaManagerPanel: React.FC = () => {
 
       {/* Product Media Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(Array.isArray(products) ? products : []).map((product, index) => {
+        {paginatedProducts.map((product, index) => {
           const trans = getTranslation(product?.translations, language);
           const name = trans?.name || product.baseSku;
           const imgUrl = getProductImageUrl(product);
@@ -388,6 +421,24 @@ export const ProductMediaManagerPanel: React.FC = () => {
           );
         })}
       </div>
+
+      {products.length > 0 && (
+        <div className="border border-black/15 bg-white rounded overflow-hidden shadow-sm">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={products.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            pageSizeOptions={[6, 9, 12, 24]}
+            isVi={isVi}
+            itemLabel={isVi ? "sản phẩm" : "products"}
+          />
+        </div>
+      )}
 
       {/* Modal for Drag & Drop + Live Comparison */}
       {editingProduct && (

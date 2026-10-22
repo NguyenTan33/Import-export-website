@@ -8,13 +8,23 @@ import { ExportAnalyticsDashboard } from "@/components/admin/ExportAnalyticsDash
 import { OrderManagementPanel } from "@/components/admin/OrderManagementPanel";
 import { PartnerVerificationPanel } from "@/components/admin/PartnerVerificationPanel";
 import { ProductManagementPanel } from "@/components/admin/ProductManagementPanel";
+import { ProductMediaManagerPanel } from "@/components/admin/ProductMediaManagerPanel";
 import { ContractManagementPanel } from "@/components/admin/ContractManagementPanel";
 import { Shield, Box, BarChart3, FileText, Warehouse, Truck, Building, Image as ImageIcon, FileSignature } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "documents" | "inventory" | "orders" | "partners" | "media" | "contracts">("analytics");
+  const [activeTab, setActiveTab] = useState<
+    | "analytics"
+    | "documents"
+    | "inventory"
+    | "orders"
+    | "partners"
+    | "products"
+    | "media"
+    | "contracts"
+  >("analytics");
   const { language } = useLanguage();
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -60,7 +70,7 @@ export default function AdminPage() {
       </div>
 
       {/* Navigation Tab Pills */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8">
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
@@ -148,6 +158,21 @@ export default function AdminPage() {
 
         <button
           type="button"
+          onClick={() => setActiveTab("products")}
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
+            activeTab === "products"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <Box className="w-4 h-4 text-[#0E4B94]" />
+          <span className="min-w-0 break-words text-center">
+            {isVi ? "6. Quản Lý Sản Phẩm" : "6. Product Management"}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("media")}
           className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "media"
@@ -156,7 +181,9 @@ export default function AdminPage() {
           }`}
         >
           <ImageIcon className="w-4 h-4 text-[#C9252C]" />
-          <span className="min-w-0 break-words text-center">{isVi ? "6. Quản Lý Sản Phẩm" : "6. Product Management"}</span>
+          <span className="min-w-0 break-words text-center">
+            {isVi ? "7. Chỉnh Sửa Ảnh Sản Phẩm" : "7. Edit Product Media"}
+          </span>
         </button>
 
         <button
@@ -171,8 +198,8 @@ export default function AdminPage() {
           <FileSignature className="w-4 h-4 text-[#0E4B94]" />
           <span className="min-w-0 break-words text-center">
             {isVi
-              ? "7. Hợp Đồng Ngoại Thương & Ký Số (E-Contract)"
-              : "7. E-Contract & Digital Signature"}
+              ? "8. Hợp Đồng Ngoại Thương & Ký Số (E-Contract)"
+              : "8. E-Contract & Digital Signature"}
           </span>
         </button>
       </div>
@@ -183,7 +210,8 @@ export default function AdminPage() {
       {activeTab === "inventory" && <WarehouseInventoryMonitor />}
       {activeTab === "orders" && <OrderManagementPanel />}
       {activeTab === "partners" && <PartnerVerificationPanel />}
-      {activeTab === "media" && <ProductManagementPanel />}
+      {activeTab === "products" && <ProductManagementPanel />}
+      {activeTab === "media" && <ProductMediaManagerPanel />}
       {activeTab === "contracts" && <ContractManagementPanel />}
     </div>
   );

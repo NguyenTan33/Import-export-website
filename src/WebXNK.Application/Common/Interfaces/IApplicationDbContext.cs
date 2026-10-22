@@ -9,6 +9,7 @@ public interface IApplicationDbContext
     DbSet<Role> Roles { get; }
     DbSet<UserRole> UserRoles { get; }
     DbSet<Company> Companies { get; }
+    DbSet<CustomerAddress> CustomerAddresses { get; }
 
     DbSet<Category> Categories { get; }
     DbSet<CategoryTranslation> CategoryTranslations { get; }

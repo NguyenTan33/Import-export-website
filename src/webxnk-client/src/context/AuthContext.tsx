@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { ApiUserProfile, authApi } from "@/services/api";
 import { decodeJwtUserId } from "@/utils/validation";
 
-export type UserRole = "B2C_CUSTOMER" | "B2B_BUYER" | "SUPER_ADMIN";
+export type UserRole = "B2C_CUSTOMER" | "B2B_BUYER" | "SUPER_ADMIN" | "SALES_EXECUTIVE" | "WAREHOUSE_MANAGER";
 
 export interface AuthUser {
   id: string;
@@ -69,6 +69,8 @@ const TOKEN_STORAGE_KEY = "webxnk_token";
 const normalizeRole = (role?: string): UserRole => {
   const normalized = role?.toLowerCase() ?? "";
   if (normalized.includes("admin")) return "SUPER_ADMIN";
+  if (normalized.includes("sales")) return "SALES_EXECUTIVE";
+  if (normalized.includes("warehouse")) return "WAREHOUSE_MANAGER";
   if (normalized.includes("b2b")) return "B2B_BUYER";
   return "B2C_CUSTOMER";
 };
@@ -76,6 +78,9 @@ const normalizeRole = (role?: string): UserRole => {
 const getRole = (roles: string[] = []): UserRole =>
   roles.map(normalizeRole).find((role) => role === "SUPER_ADMIN") ??
   roles.map(normalizeRole).find((role) => role === "B2B_BUYER") ??
+  roles.map(normalizeRole).find((role) => role === "B2C_CUSTOMER") ??
+  roles.map(normalizeRole).find((role) => role === "SALES_EXECUTIVE") ??
+  roles.map(normalizeRole).find((role) => role === "WAREHOUSE_MANAGER") ??
   "B2C_CUSTOMER";
 
 const mapApiUser = (profile: ApiUserProfile, token?: string): AuthUser => ({

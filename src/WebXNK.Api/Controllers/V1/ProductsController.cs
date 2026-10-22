@@ -24,7 +24,7 @@ public class ProductsController : BaseApiController
     }
 
     [HttpGet]
-    [ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResult<ProductSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProducts(
         [FromQuery] ProductFilterRequestDto filter,
@@ -37,6 +37,7 @@ public class ProductsController : BaseApiController
 
     [Authorize(Roles = "Admin_Super")]
     [HttpGet("admin/all")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetAllProductsForAdmin([FromQuery] ProductFilterRequestDto filter, [FromHeader(Name = "X-Language")] string lang = "vi")
     {
         filter.LanguageCode = lang;
@@ -46,7 +47,7 @@ public class ProductsController : BaseApiController
     }
 
     [HttpGet("{id:long}")]
-    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProductById(long id, [FromHeader(Name = "X-Language")] string lang = "vi")
@@ -254,16 +255,25 @@ public class ProductsController : BaseApiController
 
     [Authorize(Roles = "Admin_Super")]
     [HttpPost("{id:long}/images")]
-    public async Task<IActionResult> UploadProductImages(long id, [FromForm(Name = "files")] List<IFormFile> files)
+    [HttpPost("{id:long}/upload-image")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadProductImages(
+        long id,
+        [FromForm(Name = "files")] List<IFormFile>? files,
+        [FromForm(Name = "file")] IFormFile? file)
     {
-        if (files == null || files.Count == 0 || files.Any(file => file.Length == 0))
+        var allFiles = new List<IFormFile>();
+        if (files != null && files.Count > 0) allFiles.AddRange(files);
+        if (file != null && !allFiles.Contains(file)) allFiles.Add(file);
+
+        if (allFiles.Count == 0 || allFiles.Any(f => f.Length == 0))
             return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Vui lòng chọn ít nhất một ảnh hợp lệ."));
 
-        if (files.Any(file => file.Length > 5 * 1024 * 1024))
+        if (allFiles.Any(f => f.Length > 5 * 1024 * 1024))
             return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Lỗi tải ảnh: mỗi ảnh tối đa 5MB."));
 
         var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
-        if (files.Any(file => !allowedExtensions.Contains(Path.GetExtension(file.FileName))))
+        if (allFiles.Any(f => !allowedExtensions.Contains(Path.GetExtension(f.FileName))))
             return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Chỉ hỗ trợ ảnh JPG, PNG, WEBP."));
 
         var product = await _productService.GetProductByIdAsync(id);
@@ -274,19 +284,29 @@ public class ProductsController : BaseApiController
         Directory.CreateDirectory(uploadsDir);
 
         var urls = product.ImageUrls ?? new List<string>();
-        foreach (var file in files)
+        foreach (var f in allFiles)
         {
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var extension = Path.GetExtension(f.FileName).ToLowerInvariant();
             var fileName = $"product-{id}-{Guid.NewGuid():N}{extension}";
             var filePath = Path.Combine(uploadsDir, fileName);
 
             await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
+            await f.CopyToAsync(stream);
             urls.Add($"{Request.Scheme}://{Request.Host}/uploads/products/{fileName}");
         }
 
         var updated = await _productService.UpdateProductImagesAsync(id, urls);
         return Ok(ApiResponse<ProductDetailDto>.Ok(updated!, "Đã tải ảnh sản phẩm lên máy chủ thành công."));
+    }
+
+    [Authorize(Roles = "Admin_Super")]
+    [HttpPut("{id:long}/image")]
+    public async Task<IActionResult> UpdateProductImage(long id, [FromBody] UpdateProductImageRequestDto request)
+    {
+        var updated = await _productService.UpdateProductImageAsync(id, request.ImageUrl ?? string.Empty);
+        return updated == null
+            ? NotFound(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy sản phẩm."))
+            : Ok(ApiResponse<ProductDetailDto>.Ok(updated, "Cập nhật ảnh sản phẩm thành công."));
     }
 
     private static bool IsDuplicateSkuError(Exception exception)

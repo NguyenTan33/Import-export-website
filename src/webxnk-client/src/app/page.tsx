@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Product, Category } from "@/types";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductFilter } from "@/components/store/ProductFilter";
-import { catalogApi } from "@/services/api";
+import { catalogApi, PRODUCT_CATALOG_UPDATED_EVENT } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
 import { ArrowRight, Box } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { getTranslation } from "@/lib/utils";
 
@@ -16,19 +18,61 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<number | undefined>();
   const [keyword, setKeyword] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(6);
 
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const { addItem } = useCart();
   const isVi = language === "vi";
+  const isB2c = user?.role === "B2C_CUSTOMER";
 
+  // Reset page when category or search keyword changes
   useEffect(() => {
-    Promise.all([catalogApi.getCategories(language), catalogApi.getProducts(undefined, undefined, language)])
+    setCurrentPage(1);
+  }, [selectedCatId, keyword]);
+
+  const fetchCatalog = useCallback((force = false) => {
+    Promise.all([
+      catalogApi.getCategories(language),
+      catalogApi.getProducts(undefined, undefined, language, 100, force),
+    ])
       .then(([cats, prods]) => {
         setCategories(cats);
         setProducts(prods);
       })
       .catch(() => {});
   }, [language]);
+
+  useEffect(() => {
+    fetchCatalog(false);
+
+    const onCatalogUpdated = () => {
+      fetchCatalog(true);
+    };
+
+    window.addEventListener(PRODUCT_CATALOG_UPDATED_EVENT, onCatalogUpdated);
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "webxnk_catalog_updated") {
+        fetchCatalog(true);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchCatalog(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener(PRODUCT_CATALOG_UPDATED_EVENT, onCatalogUpdated);
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [fetchCatalog]);
 
   const filteredProducts = (Array.isArray(products) ? products : []).filter((p) => {
     const matchCat = selectedCatId ? p.categoryId === selectedCatId : true;
@@ -41,6 +85,11 @@ export default function HomePage() {
       : true;
     return matchCat && matchKeyword;
   });
+
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
 
   const handleAddToCart = (product: Product) => {
     addItem(product, 1, true);
@@ -71,13 +120,15 @@ export default function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4 items-center">
-                <Link
-                  href="/portal"
-                  className="flex items-center gap-2 bg-[#0E4B94] px-6 py-3.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#0a376d] shadow-sm hover:shadow transition-all rounded"
-                >
-                  <span>{t("home.heroBtnB2b")}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {!isB2c && (
+                  <Link
+                    href="/portal"
+                    className="flex items-center gap-2 bg-[#0E4B94] px-6 py-3.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#0a376d] shadow-sm hover:shadow transition-all rounded"
+                  >
+                    <span>{t("home.heroBtnB2b")}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
                 <Link
                   href="/cbm-calculator"
                   className="flex items-center gap-2 border-2 border-[#C9252C] bg-white px-6 py-3.5 text-xs font-black uppercase tracking-wider text-[#C9252C] hover:bg-[#C9252C] hover:text-white transition-all rounded"
@@ -197,17 +248,34 @@ export default function HomePage() {
               : "No export products matched the selected filters and search query."}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product, index) => (
-              <ProductCard
-                key={product?.id ?? product?.baseSku ?? `product-${index}`}
-                product={product}
-                onAddToCart={handleAddToCart}
-                onSelectForRfq={() => {
-                  window.location.href = `/portal?productId=${product.id}&quantity=${product.priceTiers?.[0]?.minQuantity || 500}`;
-                }}
-              />
-            ))}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedProducts.map((product, index) => (
+                <ProductCard
+                  key={product?.id ?? product?.baseSku ?? `product-${index}`}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                  onSelectForRfq={() => {
+                    window.location.href = `/portal?productId=${product.id}&quantity=${product.priceTiers?.[0]?.minQuantity || 500}`;
+                  }}
+                />
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredProducts.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[6, 9, 12, 24]}
+              isVi={isVi}
+              itemLabel={isVi ? "sản phẩm" : "products"}
+              className="border border-neutral-200 rounded-lg shadow-sm"
+            />
           </div>
         )}
       </section>
