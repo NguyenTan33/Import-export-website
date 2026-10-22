@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { getTranslation } from "@/lib/utils";
 import {
   getProductImageUrl,
   getDefaultProductImageUrl,
@@ -275,18 +276,15 @@ export const ProductMediaManagerPanel: React.FC = () => {
 
       {/* Product Media Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => {
-          const trans =
-            product.translations?.find((tr) => tr.languageCode === language) ||
-            product.translations?.find((tr) => tr.languageCode === "vi") ||
-            product.translations?.[0];
+        {(Array.isArray(products) ? products : []).map((product, index) => {
+          const trans = getTranslation(product?.translations, language);
           const name = trans?.name || product.baseSku;
           const imgUrl = getProductImageUrl(product);
           const isCustom = hasCustomProductImage(product);
 
           return (
             <div
-              key={product.id}
+              key={product?.id ?? product?.baseSku ?? `product-${index}`}
               className="border border-black/20 bg-white rounded overflow-hidden shadow-sm flex flex-col justify-between"
             >
               <div>

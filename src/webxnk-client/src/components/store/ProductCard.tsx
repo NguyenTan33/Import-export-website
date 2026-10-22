@@ -19,6 +19,7 @@ import {
   getDefaultProductImageUrl,
 } from "@/utils/productImages";
 import { ProductImageEditModal } from "@/components/admin/ProductImageEditModal";
+import { getTranslation } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -40,10 +41,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isVi = language === "vi";
   const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
 
-  const currentTranslation =
-    product.translations?.find((tr) => tr.languageCode === language) ||
-    product.translations?.find((tr) => tr.languageCode === "vi") ||
-    product.translations?.[0];
+  const currentTranslation = getTranslation(product?.translations, language);
 
   const name = currentTranslation?.name || product.baseSku;
   const desc = currentTranslation?.shortDescription || "";

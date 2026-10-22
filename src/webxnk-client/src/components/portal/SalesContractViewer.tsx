@@ -268,8 +268,8 @@ export const SalesContractViewer: React.FC<SalesContractViewerProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {contract.items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 transition">
+                {(Array.isArray(contract.items) ? contract.items : []).map((item, idx) => (
+                  <tr key={item.productId ?? `contract-item-${idx}`} className="hover:bg-slate-50/60 transition">
                     <td className="py-3 px-4 text-center font-medium text-slate-500">{idx + 1}</td>
                     <td className="py-3 px-4 font-semibold text-slate-900">{item.productName}</td>
                     <td className="py-3 px-4 font-mono text-slate-600">{item.sku}</td>

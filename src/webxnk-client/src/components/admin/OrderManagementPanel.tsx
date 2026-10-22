@@ -154,8 +154,8 @@ export const OrderManagementPanel: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
+                filteredOrders.map((order, index) => (
+                  <tr key={order.id ?? `order-${index}`} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
                       {order.id}
                       <span className="block text-[10px] font-normal text-slate-400">{order.date}</span>

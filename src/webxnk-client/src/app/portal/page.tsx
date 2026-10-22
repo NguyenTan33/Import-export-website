@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useEffect, useState } from "react";
+import axios from "axios";
 import { useSearchParams } from "next/navigation";
 import { RfqForm } from "@/components/portal/RfqForm";
 import {
@@ -41,6 +42,7 @@ import { PdfPreviewModal } from "@/components/admin/PdfPreviewModal";
 import { SalesContractViewer } from "@/components/portal/SalesContractViewer";
 import { CounterOfferTimeline } from "@/components/portal/CounterOfferTimeline";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 function PortalContent() {
   const searchParams = useSearchParams();
@@ -53,6 +55,8 @@ function PortalContent() {
 
   const [activeTab, setActiveTab] = useState<"create" | "list" | "payment">("create");
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [isLoadingRfqs, setIsLoadingRfqs] = useState(true);
+  const [rfqRefreshKey, setRfqRefreshKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -74,6 +78,7 @@ function PortalContent() {
   const [isSigningBuyer, setIsSigningBuyer] = useState(false);
 
   const { language } = useLanguage();
+  const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
   const isVi = language === "vi";
 
   const [rfqs, setRfqs] = useState<RfqRequestDto[]>([]);
@@ -91,27 +96,50 @@ function PortalContent() {
   const [paymentSlips, setPaymentSlips] = useState<B2BPaymentSlip[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     catalogApi.getProducts(undefined, undefined, language)
-      .then((list) => {
-        setAvailableProducts(list);
-      })
-      .catch(() => {});
+      .then((list) => { if (!cancelled) setAvailableProducts(Array.isArray(list) ? list : []); })
+      .catch(() => { if (!cancelled) setAvailableProducts([]); });
 
-    rfqApi
-      .getMyRfqs()
-      .then((list) => {
-        setRfqs(list);
-        if (list[0]?.id) {
-          setSelectedPaymentRfqId(list[0].id);
-          setPaymentAmountUsd(Number(((list[0].totalQuotedAmountUsd || 0) * 0.3).toFixed(2)));
-          return Promise.all(list.filter((rfq) => rfq.id).map((rfq) => paymentsApi.getB2BPaymentsByRfq(rfq.id!)));
+    if (isAuthLoading) return () => { cancelled = true; };
+    if (!isAuthenticated) {
+      setRfqs([]);
+      setPaymentSlips([]);
+      setIsLoadingRfqs(false);
+      return () => { cancelled = true; };
+    }
+
+    setIsLoadingRfqs(true);
+    setErrorMessage(null);
+    rfqApi.getMyRfqs()
+      .then(async (loadedRfqs) => {
+        if (cancelled) return;
+        const safeRfqs = Array.isArray(loadedRfqs) ? loadedRfqs : [];
+        setRfqs(safeRfqs);
+        const firstPayableRfq = safeRfqs.find((rfq) => Number.isFinite(rfq.id) && (rfq.id ?? 0) > 0);
+        if (firstPayableRfq?.id) {
+          setSelectedPaymentRfqId(firstPayableRfq.id);
+          setPaymentAmountUsd(Number(((firstPayableRfq.totalQuotedAmountUsd || 0) * 0.3).toFixed(2)));
+        } else {
+          setSelectedPaymentRfqId(0);
+          setPaymentAmountUsd(0);
         }
-        setPaymentSlips([]);
-        return [];
+        const slipsByRfq = await Promise.all(
+          safeRfqs.filter((rfq) => rfq.id).map((rfq) => paymentsApi.getB2BPaymentsByRfq(rfq.id!)),
+        );
+        if (!cancelled) setPaymentSlips(slipsByRfq.flat());
       })
-      .then((slips) => setPaymentSlips(slips.flat()))
-      .catch(() => {});
-  }, [language]);
+      .catch(() => {
+        if (!cancelled) {
+          setRfqs([]);
+          setPaymentSlips([]);
+          setErrorMessage(isVi ? "Không thể tải danh sách RFQ. Vui lòng thử lại." : "Could not load RFQs. Please try again.");
+        }
+      })
+      .finally(() => { if (!cancelled) setIsLoadingRfqs(false); });
+
+    return () => { cancelled = true; };
+  }, [language, isAuthLoading, isAuthenticated, rfqRefreshKey, isVi]);
 
   const handleSelectRfqForPayment = (rfqId: number, stage: "DEPOSIT_30" | "BALANCE_70" = paymentStage) => {
     setSelectedPaymentRfqId(rfqId);
@@ -125,6 +153,8 @@ function PortalContent() {
   const handleSlipFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadedSlipUrl("");
+    setErrorMessage(null);
     setSelectedSlipFile(file);
     setIsUploadingSlip(true);
     try {
@@ -172,26 +202,60 @@ function PortalContent() {
   };
 
   const handleCreateRfq = async (payload: RfqRequestDto) => {
+    if (!isAuthenticated) {
+      setErrorMessage(isVi ? "Vui lòng đăng nhập trước khi gửi yêu cầu báo giá." : "Please sign in before submitting an RFQ.");
+      return;
+    }
+    if (user?.isDemo) {
+      setErrorMessage(isVi
+        ? "Tài khoản dùng thử không có phiên đăng nhập trên máy chủ. Vui lòng đăng xuất và đăng nhập bằng tài khoản B2B đã đăng ký để gửi RFQ."
+        : "Demo accounts are not authenticated on the server. Sign out and use a registered B2B account to submit an RFQ.");
+      return;
+    }
+    if (user?.role === "B2C_CUSTOMER") {
+      setErrorMessage(isVi ? "Tính năng RFQ yêu cầu tài khoản doanh nghiệp B2B." : "RFQ submission requires a B2B business account.");
+      return;
+    }
     setIsSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
       const createdRfq = await rfqApi.createRfq(payload);
+      if (!createdRfq.rfqNumber) {
+        throw new Error("The server returned an incomplete RFQ.");
+      }
       setRfqs((previous) => [createdRfq, ...previous]);
+      setIsLoadingRfqs(false);
       setSuccessMessage(isVi ? `Tạo đơn RFQ thành công với mã: ${createdRfq.rfqNumber}` : `Successfully created RFQ ${createdRfq.rfqNumber}.`);
       setActiveTab("list");
-    } catch {
-      setErrorMessage(isVi ? "Không thể tạo RFQ trên máy chủ." : "Could not create the RFQ on the server.");
+    } catch (error) {
+      const responseData = axios.isAxiosError(error) ? error.response?.data : undefined;
+      const apiMessage = responseData && typeof responseData === "object"
+        ? ("message" in responseData && typeof responseData.message === "string" ? responseData.message : undefined)
+          || ("errors" in responseData && Array.isArray(responseData.errors) ? responseData.errors.filter((item: unknown): item is string => typeof item === "string").join(" ") : undefined)
+        : undefined;
+      const message = apiMessage
+        || (axios.isAxiosError(error) && error.code === "ECONNABORTED"
+          ? (isVi ? "Máy chủ xử lý quá lâu. Vui lòng thử lại." : "The server took too long to respond. Please try again.")
+          : (isVi ? "Không thể tạo RFQ trên máy chủ. Vui lòng kiểm tra thông tin doanh nghiệp, sản phẩm và số lượng tối thiểu (MOQ)." : "Could not create the RFQ. Check your business profile, selected products, and minimum order quantities (MOQ)."));
+      setErrorMessage(message);
     } finally { setIsSubmitting(false); }
   };
 
   const handleOpenChat = (rfq: RfqRequestDto) => {
+    if (!rfq.id) {
+      setErrorMessage(isVi ? "RFQ này chưa có ID hợp lệ để mở phòng đàm phán." : "This RFQ has no valid ID for negotiation.");
+      return;
+    }
     setActiveRfqForChat(rfq);
     setChatModalOpen(true);
   };
 
   const handleOpenPdfPreview = (rfqId?: number) => {
-    if (!rfqId) return;
+    if (!rfqId) {
+      setErrorMessage(isVi ? "RFQ không có ID hợp lệ để xem hóa đơn." : "This RFQ has no valid ID for invoice preview.");
+      return;
+    }
     setPdfRfqId(rfqId);
     setPdfModalOpen(true);
   };
@@ -204,7 +268,10 @@ function PortalContent() {
   };
 
   const handleDownloadPi = async (rfqId?: number) => {
-    if (!rfqId) return;
+    if (!rfqId) {
+      setErrorMessage(isVi ? "RFQ không có ID hợp lệ để tải hóa đơn." : "This RFQ has no valid ID for invoice download.");
+      return;
+    }
     try {
       const blob = await documentsApi.downloadProformaInvoice(rfqId);
       const url = window.URL.createObjectURL(blob);
@@ -222,7 +289,10 @@ function PortalContent() {
 
   // E-Contract & Negotiation Handlers (EXP-80 -> 89)
   const handleOpenNegotiateModal = async (rfq: RfqRequestDto) => {
-    if (!rfq.id) return;
+    if (!rfq.id) {
+      setErrorMessage(isVi ? "RFQ không có ID hợp lệ để mở đàm phán." : "This RFQ has no valid ID for negotiation.");
+      return;
+    }
     setActiveRfqForNegotiate(rfq);
     setCounterOfferModalOpen(true);
     try {
@@ -258,7 +328,10 @@ function PortalContent() {
   };
 
   const handleOpenContractModal = async (rfq: RfqRequestDto) => {
-    if (!rfq.id) return;
+    if (!rfq.id) {
+      setErrorMessage(isVi ? "RFQ không có ID hợp lệ để mở hợp đồng." : "This RFQ has no valid ID for the contract.");
+      return;
+    }
     try {
       const contract = await contractsApi.getContractByRfqId(rfq.id);
       if (!contract) throw new Error("No contract found for this RFQ.");
@@ -374,6 +447,17 @@ function PortalContent() {
           </button>
         </div>
       )}
+      {errorMessage && (
+        <div role="alert" className="border border-red-500 bg-red-50 p-4 text-red-900 text-xs font-mono flex items-center justify-between gap-2 rounded">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button type="button" onClick={() => setErrorMessage(null)} className="text-red-700 hover:text-red-950" aria-label={isVi ? "Đóng thông báo lỗi" : "Dismiss error"}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Tab 1: Create RFQ */}
       {activeTab === "create" && (
@@ -384,6 +468,13 @@ function PortalContent() {
                 availableProducts={availableProducts}
                 onSubmitRfq={handleCreateRfq}
                 isSubmitting={isSubmitting}
+                canSubmit={isAuthenticated && !isAuthLoading && user?.role !== "B2C_CUSTOMER" && !user?.isDemo}
+                submissionPrompt={user?.isDemo
+                  ? (isVi ? "Tài khoản dùng thử không đăng nhập được vào máy chủ. Hãy đăng nhập bằng tài khoản B2B đã đăng ký." : "Demo accounts cannot authenticate with the server. Sign in with a registered B2B account.")
+                  : isAuthenticated && user?.role === "B2C_CUSTOMER"
+                    ? (isVi ? "RFQ yêu cầu tài khoản doanh nghiệp." : "RFQs require a business account.")
+                    : undefined}
+                authHref={isAuthenticated ? "/register" : "/login?returnTo=%2Fportal"}
                 initialProductId={initialProductIdParam}
                 initialQuantity={initialQuantityParam}
               />
@@ -479,9 +570,29 @@ function PortalContent() {
             </span>
           </div>
 
+          {isAuthLoading || isLoadingRfqs ? (
+            <p className="border border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-600">
+              {isVi ? "Đang tải danh sách RFQ..." : "Loading RFQs..."}
+            </p>
+          ) : !isAuthenticated ? (
+            <div className="border border-amber-300 bg-amber-50 p-6 text-center text-sm text-amber-900">
+              <p>{isVi ? "Đăng nhập để xem các yêu cầu báo giá của bạn." : "Sign in to view your RFQs."}</p>
+              <Link href="/login?returnTo=%2Fportal" className="mt-3 inline-block font-bold underline">
+                {isVi ? "Đăng nhập" : "Sign in"}
+              </Link>
+            </div>
+          ) : rfqs.length === 0 ? (
+            <div className="border border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-600">
+              <p>{isVi ? "Chưa có RFQ nào. Hãy tạo yêu cầu báo giá mới." : "No RFQs yet. Create a new quotation request to get started."}</p>
+              <button type="button" onClick={() => setRfqRefreshKey((key) => key + 1)} className="mt-3 font-bold text-[#0E4B94] underline">
+                {isVi ? "Tải lại" : "Retry"}
+              </button>
+            </div>
+          ) : null}
+
           <div className="space-y-4">
-            {rfqs.map((rfq) => (
-              <div key={rfq.id} className="border border-black p-4 bg-white space-y-3 shadow-sm hover:border-[#0E4B94] transition-colors rounded">
+            {rfqs.map((rfq, index) => (
+              <div key={rfq.id ?? rfq.rfqNumber ?? `rfq-${index}`} className="border border-black p-4 bg-white space-y-3 shadow-sm hover:border-[#0E4B94] transition-colors rounded">
                 <div className="flex flex-wrap items-start justify-between gap-2 border-b border-neutral-200 pb-2">
                   <div>
                     <span className="text-xs font-mono font-black text-[#0E4B94]">
@@ -547,7 +658,7 @@ function PortalContent() {
                     <span className="text-neutral-500">
                       {isVi ? "Số lượng mặt hàng:" : "Line items:"}
                     </span>{" "}
-                    <strong>{rfq.items.length} {isVi ? "loại" : "items"}</strong>
+                    <strong>{rfq.items?.length || 0} {isVi ? "loại" : "items"}</strong>
                   </div>
                   <div>
                     <span className="text-neutral-500">
@@ -565,7 +676,11 @@ function PortalContent() {
                 <div className="flex flex-wrap gap-2 pt-2 justify-end border-t border-neutral-100">
                   <button
                     onClick={() => {
-                      if (rfq.id) handleSelectRfqForPayment(rfq.id, "DEPOSIT_30");
+                      if (!rfq.id) {
+                        setErrorMessage(isVi ? "RFQ không có ID hợp lệ." : "This RFQ has no valid ID.");
+                        return;
+                      }
+                      handleSelectRfqForPayment(rfq.id, "DEPOSIT_30");
                       setActiveTab("payment");
                     }}
                     className="flex items-center gap-1.5 border border-emerald-600 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold uppercase text-emerald-900 hover:bg-emerald-100 transition-colors shadow-sm rounded"
@@ -655,8 +770,8 @@ function PortalContent() {
                   onChange={(e) => handleSelectRfqForPayment(Number(e.target.value))}
                   className="w-full border border-black p-2.5 rounded bg-white focus:outline-none"
                 >
-                  {rfqs.map((r) => (
-                    <option key={r.id || 1} value={r.id || 1}>
+                  {rfqs.map((r, index) => (
+                    <option key={r.id ?? r.rfqNumber ?? `payment-rfq-${index}`} value={r.id ?? ""}>
                       {r.rfqNumber} — ${(r.totalQuotedAmountUsd || 0).toLocaleString("en-US")} USD ({r.incotermCode})
                     </option>
                   ))}
@@ -809,8 +924,8 @@ function PortalContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {paymentSlips.map((slip) => (
-                    <tr key={slip.id} className="hover:bg-neutral-50">
+                  {paymentSlips.map((slip, index) => (
+                    <tr key={slip.id ?? `${slip.rfqId}-${index}`} className="hover:bg-neutral-50">
                       <td className="py-3 px-3">
                         <div className="font-bold text-[#0E4B94]">
                           {slip.rfqNumber || `RFQ #${slip.rfqId}`}
@@ -868,9 +983,9 @@ function PortalContent() {
           isOpen={chatModalOpen}
           onClose={() => setChatModalOpen(false)}
           rfqNumber={activeRfqForChat.rfqNumber || "RFQ-2026-EXP"}
-          rfqId={activeRfqForChat.id || 1}
-          currentTotalUsd={activeRfqForChat.totalQuotedAmountUsd || 28500}
-          items={activeRfqForChat.items}
+          rfqId={activeRfqForChat.id ?? 0}
+          currentTotalUsd={activeRfqForChat.totalQuotedAmountUsd ?? 0}
+          items={Array.isArray(activeRfqForChat.items) ? activeRfqForChat.items : []}
           onAcceptPrice={handlePriceAgreed}
         />
       )}
@@ -904,7 +1019,7 @@ function PortalContent() {
 
             <div className="p-6">
               <CounterOfferTimeline
-                rfqId={activeRfqForNegotiate.id || 1}
+                rfqId={activeRfqForNegotiate.id ?? 0}
                 currentStatus={activeRfqForNegotiate.status || "QUOTED"}
                 offers={offersForActiveRfq}
                 userRole="BUYER"

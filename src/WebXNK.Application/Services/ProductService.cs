@@ -170,6 +170,13 @@ public class ProductService : IProductService
             IsActive = p.IsActive,
             ImageUrl = p.ImageUrl,
             ImageUrls = DeserializeImageUrls(p.ImageUrlsJson, p.ImageUrl),
+            Translations = p.Translations.Select(t => new ProductTranslationDto
+            {
+                LanguageCode = t.LanguageCode,
+                Name = t.Name,
+                ShortDescription = t.ShortDescription,
+                FullDescription = t.FullDescription
+            }).ToList(),
             SpecificationsJson = p.SpecificationsJson,
             ExportPackaging = p.ExportPackaging == null ? null : new ExportPackagingDto
             {
@@ -200,7 +207,10 @@ public class ProductService : IProductService
 
     public async Task<ProductDetailDto> CreateProductAsync(CreateProductRequestDto request, long createdByUserId)
     {
-        var normalizedSku = request.BaseSku.Trim().ToUpperInvariant();
+        var normalizedSku = request.BaseSku?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedSku)) throw new ArgumentException("SKU không được để trống.");
+        if (!await _context.Categories.AnyAsync(c => c.Id == request.CategoryId))
+            throw new ArgumentException("Danh mục sản phẩm không tồn tại.");
 
         if (await _context.Products.AnyAsync(p => p.BaseSku == normalizedSku))
         {
@@ -211,35 +221,31 @@ public class ProductService : IProductService
         {
             CategoryId = request.CategoryId,
             BaseSku = normalizedSku,
-            HsCode = request.HsCode.Trim(),
-            CountryOfOrigin = request.CountryOfOrigin.Trim().ToUpperInvariant(),
+            HsCode = request.HsCode?.Trim() ?? string.Empty,
+            CountryOfOrigin = request.CountryOfOrigin?.Trim().ToUpperInvariant() ?? "VNM",
             DefaultRetailPriceUsd = request.DefaultRetailPriceUsd,
-            ImageUrl = request.ImageUrls.FirstOrDefault() ?? request.ImageUrl,
+            ImageUrl = request.ImageUrls?.FirstOrDefault() ?? request.ImageUrl,
             ImageUrlsJson = SerializeImageUrls(request.ImageUrls, request.ImageUrl),
             SpecificationsJson = request.SpecificationsJson,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
 
-        // Bản dịch Tiếng Việt
-        product.Translations.Add(new ProductTranslation
+        foreach (var language in new[] { "vi", "en" })
         {
-            LanguageCode = "vi",
-            Name = request.NameVi.Trim(),
-            ShortDescription = request.ShortDescriptionVi?.Trim(),
-            FullDescription = request.FullDescriptionVi?.Trim()
-        });
-
-        // Bản dịch Tiếng Anh (nếu có)
-        if (!string.IsNullOrWhiteSpace(request.NameEn))
-        {
+            var translation = request.Translations?.FirstOrDefault(t => string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase));
+            var name = translation?.Name ?? (language == "vi" ? request.NameVi : request.NameEn) ?? string.Empty;
+            if (language == "vi" && string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Tên sản phẩm tiếng Việt không được để trống.");
+            if (language == "vi" || !string.IsNullOrWhiteSpace(name))
+            {
             product.Translations.Add(new ProductTranslation
             {
-                LanguageCode = "en",
-                Name = request.NameEn.Trim(),
-                ShortDescription = request.ShortDescriptionEn?.Trim(),
-                FullDescription = request.FullDescriptionEn?.Trim()
+                LanguageCode = language,
+                Name = name.Trim(),
+                ShortDescription = (translation?.ShortDescription ?? translation?.Description ?? (language == "vi" ? request.ShortDescriptionVi : request.ShortDescriptionEn))?.Trim(),
+                FullDescription = (translation?.FullDescription ?? translation?.Description ?? (language == "vi" ? request.FullDescriptionVi : request.FullDescriptionEn))?.Trim()
             });
+            }
         }
 
         // Quy cách đóng gói xuất khẩu
@@ -254,7 +260,7 @@ public class ProductService : IProductService
         };
 
         // Bảng giá bậc thang
-        foreach (var tier in request.PriceTiers)
+        foreach (var tier in request.PriceTiers ?? new List<CreatePriceTierDto>())
         {
             product.PriceTiers.Add(new ProductPriceTier
             {
@@ -281,7 +287,8 @@ public class ProductService : IProductService
             .FirstOrDefaultAsync(p => p.Id == id);
         if (product == null) return null;
 
-        var normalizedSku = request.BaseSku.Trim().ToUpperInvariant();
+        var normalizedSku = request.BaseSku?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedSku)) throw new ArgumentException("SKU không được để trống.");
         if (await _context.Products.AnyAsync(p => p.Id != id && p.BaseSku == normalizedSku))
             throw new InvalidOperationException($"Mã SKU '{request.BaseSku}' đã tồn tại trong hệ thống.");
         if (!await _context.Categories.AnyAsync(c => c.Id == request.CategoryId))
@@ -289,8 +296,8 @@ public class ProductService : IProductService
 
         product.CategoryId = request.CategoryId;
         product.BaseSku = normalizedSku;
-        product.HsCode = request.HsCode.Trim();
-        product.CountryOfOrigin = request.CountryOfOrigin.Trim().ToUpperInvariant();
+        product.HsCode = request.HsCode?.Trim() ?? string.Empty;
+        product.CountryOfOrigin = request.CountryOfOrigin?.Trim().ToUpperInvariant() ?? "VNM";
         product.DefaultRetailPriceUsd = request.DefaultRetailPriceUsd;
         product.ImageUrlsJson = SerializeImageUrls(request.ImageUrls, request.ImageUrl);
         product.ImageUrl = DeserializeImageUrls(product.ImageUrlsJson, request.ImageUrl).FirstOrDefault();
@@ -298,13 +305,20 @@ public class ProductService : IProductService
         product.IsActive = request.IsActive;
         product.UpdatedAt = DateTime.UtcNow;
 
-        SetTranslation(product, "vi", request.NameVi, request.ShortDescriptionVi, request.FullDescriptionVi);
-        if (!string.IsNullOrWhiteSpace(request.NameEn))
-            SetTranslation(product, "en", request.NameEn, request.ShortDescriptionEn, request.FullDescriptionEn);
-        else
+        foreach (var language in new[] { "vi", "en" })
         {
-            var english = product.Translations.FirstOrDefault(t => t.LanguageCode == "en");
-            if (english != null) product.Translations.Remove(english);
+            var translation = request.Translations?.FirstOrDefault(t => string.Equals(t.LanguageCode, language, StringComparison.OrdinalIgnoreCase));
+            var name = translation?.Name ?? (language == "vi" ? request.NameVi : request.NameEn) ?? string.Empty;
+            if (language == "vi" && string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Tên sản phẩm tiếng Việt không được để trống.");
+            if (language == "vi" || !string.IsNullOrWhiteSpace(name))
+            {
+                SetTranslation(product, language, name, translation?.ShortDescription ?? translation?.Description ?? (language == "vi" ? request.ShortDescriptionVi : request.ShortDescriptionEn), translation?.FullDescription ?? translation?.Description ?? (language == "vi" ? request.FullDescriptionVi : request.FullDescriptionEn));
+            }
+            else
+            {
+                var oldTranslation = product.Translations.FirstOrDefault(t => t.LanguageCode == language);
+                if (oldTranslation != null) product.Translations.Remove(oldTranslation);
+            }
         }
 
         product.ExportPackaging ??= new ExportPackaging { ProductId = product.Id };
@@ -316,7 +330,7 @@ public class ProductService : IProductService
         product.ExportPackaging.PcsPerCarton = request.PcsPerCarton;
 
         foreach (var tier in product.PriceTiers.ToList()) product.PriceTiers.Remove(tier);
-        foreach (var tier in request.PriceTiers)
+        foreach (var tier in request.PriceTiers ?? new List<CreatePriceTierDto>())
             product.PriceTiers.Add(new ProductPriceTier
             {
                 ProductId = product.Id,
@@ -333,8 +347,11 @@ public class ProductService : IProductService
 
     public async Task<bool> DeleteProductAsync(long id)
     {
-        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+        // Product has a global soft-delete filter. Ignore it here so a retry
+        // after a successful delete remains idempotent instead of returning 404.
+        var product = await _context.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id);
         if (product == null) return false;
+        if (product.IsDeleted) return true;
         product.IsDeleted = true;
         product.IsActive = false;
         product.UpdatedAt = DateTime.UtcNow;

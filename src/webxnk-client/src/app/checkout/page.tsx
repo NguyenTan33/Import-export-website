@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { getTranslation } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { getProductImageUrl } from "@/utils/productImages";
 
@@ -181,8 +182,7 @@ function CheckoutContent() {
               <div className="mt-4 divide-y divide-neutral-100 max-h-80 overflow-y-auto pr-1">
                 {checkoutItems.map((item) => {
                   const prodName =
-                    item.product.translations?.find((tr) => tr.languageCode === language)?.name ||
-                    item.product.translations?.[0]?.name ||
+                    getTranslation(item?.product?.translations, language)?.name ||
                     item.product.baseSku;
                   const imgSrc = getProductImageUrl(item.product);
                   const unitPrice = item.unitPriceUsd ?? item.product.defaultRetailPriceUsd;

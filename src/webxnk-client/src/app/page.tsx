@@ -9,6 +9,7 @@ import { ArrowRight, Box } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
+import { getTranslation } from "@/lib/utils";
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -29,12 +30,9 @@ export default function HomePage() {
       .catch(() => {});
   }, [language]);
 
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = (Array.isArray(products) ? products : []).filter((p) => {
     const matchCat = selectedCatId ? p.categoryId === selectedCatId : true;
-    const trans =
-      p.translations?.find((tr) => tr.languageCode === language) ||
-      p.translations?.find((tr) => tr.languageCode === "vi") ||
-      p.translations?.[0];
+    const trans = getTranslation(p?.translations, language);
     const name = trans?.name || "";
     const matchKeyword = keyword
       ? name.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -200,9 +198,9 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <ProductCard
-                key={product.id}
+                key={product?.id ?? product?.baseSku ?? `product-${index}`}
                 product={product}
                 onAddToCart={handleAddToCart}
                 onSelectForRfq={() => {

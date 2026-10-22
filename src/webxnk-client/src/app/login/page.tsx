@@ -26,7 +26,10 @@ export default function LoginPage() {
     setFormError("");
     setIsSubmitting(true);
     const success = await login(email, password);
-    if (success) router.push("/");
+    if (success) {
+      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+      router.push(returnTo?.startsWith("/") ? returnTo : "/");
+    }
     else {
       setFormError("Email hoặc mật khẩu không chính xác, hoặc API chưa sẵn sàng.");
       setIsSubmitting(false);

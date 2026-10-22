@@ -193,9 +193,9 @@ export const PartnerVerificationPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {companies.map((comp) => (
+          {companies.map((comp, index) => (
             <div
-              key={comp.id}
+              key={comp.id ?? comp.companyName ?? `company-${index}`}
               className={`bg-white rounded-xl p-5 border shadow-sm space-y-3 transition-all ${
                 comp.isVerified ? "border-emerald-200 bg-emerald-50/20" : "border-slate-200 hover:border-blue-300"
               }`}
@@ -302,8 +302,8 @@ export const PartnerVerificationPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {bankSlips.map((slip) => (
-                <tr key={slip.id} className="hover:bg-slate-50/80 transition-colors">
+              {bankSlips.map((slip, index) => (
+                <tr key={slip.id ?? `${slip.rfqId}-${index}`} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <span className="font-mono font-bold text-[#0E4B94] block">{slip.rfqId}</span>
                     <span className="text-slate-800 font-medium">{slip.companyName}</span>

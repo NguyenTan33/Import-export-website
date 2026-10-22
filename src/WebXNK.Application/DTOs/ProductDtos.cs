@@ -35,10 +35,19 @@ public class ProductDetailDto
     public bool IsActive { get; set; }
     public string? ImageUrl { get; set; }
     public List<string> ImageUrls { get; set; } = new();
+    public List<ProductTranslationDto> Translations { get; set; } = new();
     public string? SpecificationsJson { get; set; }
 
     public ExportPackagingDto? ExportPackaging { get; set; }
     public List<PriceTierDto> PriceTiers { get; set; } = new();
+}
+
+public class ProductTranslationDto
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
 }
 
 public class ExportPackagingDto
@@ -108,6 +117,7 @@ public class CreateProductRequestDto
     public decimal DefaultRetailPriceUsd { get; set; }
     public string? ImageUrl { get; set; }
     public List<string> ImageUrls { get; set; } = new();
+    public List<ProductTranslationWriteDto> Translations { get; set; } = new();
     public string? SpecificationsJson { get; set; }
 
     // Bản dịch Tiếng Việt
@@ -130,6 +140,15 @@ public class CreateProductRequestDto
 
     // Bảng giá bậc thang
     public List<CreatePriceTierDto> PriceTiers { get; set; } = new();
+}
+
+public class ProductTranslationWriteDto
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
 }
 
 public class UpdateProductRequestDto : CreateProductRequestDto

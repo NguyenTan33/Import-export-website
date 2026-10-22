@@ -10,6 +10,7 @@ import { getCartStorageKey, readCart, writeCart } from "@/utils/cartStorage";
 import { isPositiveInteger } from "@/utils/validation";
 import { useAuth } from "@/context/AuthContext";
 import { ShoppingBag, X, Trash2, Plus, Minus, ArrowRight, Box } from "lucide-react";
+import { getTranslation } from "@/lib/utils";
 
 interface CartContextType {
   items: CartItem[];
@@ -195,14 +196,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     </p>
                   </div>
                 ) : (
-                  visibleItems.map((item) => {
-                    const trans =
-                      item.product.translations?.find((tr) => tr.languageCode === language) ||
-                      item.product.translations?.find((tr) => tr.languageCode === "vi") ||
-                      item.product.translations?.[0];
+                  visibleItems.map((item, index) => {
+                    const trans = getTranslation(item?.product?.translations, language);
 
                     return (
-                      <div key={item.product.id} className="py-3.5 flex justify-between items-start gap-3 text-xs">
+                      <div key={item.product.id ?? item.product.baseSku ?? `cart-item-${index}`} className="py-3.5 flex justify-between items-start gap-3 text-xs">
                         <div className="flex items-start gap-3 min-w-0 flex-1">
                           <img
                             src={getProductImageUrl(item.product)}

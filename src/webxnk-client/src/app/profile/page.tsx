@@ -414,9 +414,9 @@ export default function ProfilePage() {
                   ? (language === "vi" ? "Tài khoản demo không có lịch sử đơn hàng thật." : "Demo accounts have no real order history.")
                   : (language === "vi" ? "Bạn chưa có đơn hàng nào." : "You have no orders yet.")}
               </div>
-            ) : orders.map((order) => (
+            ) : orders.map((order, orderIndex) => (
               <div 
-                key={order.id}
+                key={order.id ?? order.orderNumber ?? `order-${orderIndex}`}
                 className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -440,8 +440,8 @@ export default function ProfilePage() {
 
                 {/* Items */}
                 <div className="space-y-2">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm py-1">
+                  {(Array.isArray(order.items) ? order.items : []).map((item, itemIndex) => (
+                    <div key={item.id ?? `${order.id ?? orderIndex}-item-${itemIndex}`} className="flex items-center justify-between text-sm py-1">
                       <span className="text-slate-800 font-medium">
                         {item.productName} <span className="text-slate-400">× {item.quantity}</span>
                       </span>
@@ -472,9 +472,9 @@ export default function ProfilePage() {
                   ? (language === "vi" ? "Tài khoản demo không có yêu cầu báo giá thật." : "Demo accounts have no real quotation requests.")
                   : (language === "vi" ? "Bạn chưa gửi yêu cầu báo giá nào." : "You have not submitted any quotation requests.")}
               </div>
-            ) : rfqs.map((rfq) => (
+            ) : rfqs.map((rfq, rfqIndex) => (
               <div 
-                key={rfq.id}
+                key={rfq.id ?? rfq.rfqNumber ?? `rfq-${rfqIndex}`}
                 className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 transition-all space-y-4"
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">

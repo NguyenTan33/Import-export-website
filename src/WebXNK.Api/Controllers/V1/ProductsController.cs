@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebXNK.Application.Common.Models;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
+using WebXNK.Infrastructure.Persistence.Context;
 
 namespace WebXNK.Api.Controllers.V1;
 
@@ -11,18 +14,15 @@ public class ProductsController : BaseApiController
 {
     private readonly IProductService _productService;
     private readonly IWebHostEnvironment _env;
+    private readonly WebXnkDbContext _dbContext;
 
-    public ProductsController(IProductService productService, IWebHostEnvironment env)
+    public ProductsController(IProductService productService, IWebHostEnvironment env, WebXnkDbContext dbContext)
     {
         _productService = productService;
         _env = env;
+        _dbContext = dbContext;
     }
 
-    /// <summary>
-    /// Lấy danh sách sản phẩm xuất khẩu có phân trang, tìm kiếm và lọc đa tiêu chí
-    /// </summary>
-    /// <param name="filter">Tham số lọc (CategoryId, HsCode, MinPrice, MaxPrice, PageIndex, PageSize)</param>
-    /// <param name="lang">Mã ngôn ngữ (Header 'X-Language': 'vi' hoặc 'en')</param>
     [HttpGet]
     [ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResult<ProductSummaryDto>>), StatusCodes.Status200OK)]
@@ -45,11 +45,6 @@ public class ProductsController : BaseApiController
         return Ok(ApiResponse<PaginatedResult<ProductSummaryDto>>.Ok(result));
     }
 
-    /// <summary>
-    /// Lấy thông tin chi tiết sản phẩm (kèm quy cách đóng gói container CBM và bảng giá sỉ MOQ)
-    /// </summary>
-    /// <param name="id">ID sản phẩm</param>
-    /// <param name="lang">Mã ngôn ngữ (Header 'X-Language': 'vi' hoặc 'en')</param>
     [HttpGet("{id:long}")]
     [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
     [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status200OK)]
@@ -74,19 +69,147 @@ public class ProductsController : BaseApiController
     }
 
     /// <summary>
-    /// Tạo mới sản phẩm xuất khẩu kèm quy cách đóng gói và bảng giá bậc thang (Yêu cầu quyền Admin / Sales)
+    /// Tạo mới sản phẩm đơn thuần (chỉ truyền JSON)
     /// </summary>
     [Authorize(Roles = "Admin_Super")]
     [HttpPost]
+    [Consumes("application/json")]
     [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequestDto request)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = long.TryParse(userIdClaim, out var uid) ? uid : 1;
+        try
+        {
+            var result = await _productService.CreateProductAsync(request, userId);
+            return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, ApiResponse<ProductDetailDto>.Ok(result, "Tạo sản phẩm xuất khẩu thành công."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Mã SKU này đã tồn tại, vui lòng nhập SKU khác"));
+        }
+        catch (DbUpdateException ex) when (IsDuplicateSkuError(ex))
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Mã SKU này đã tồn tại, vui lòng nhập SKU khác"));
+        }
+    }
 
-        var result = await _productService.CreateProductAsync(request, userId);
-        return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, ApiResponse<ProductDetailDto>.Ok(result, "Tạo sản phẩm xuất khẩu thành công."));
+    /// <summary>
+    /// Tạo sản phẩm kèm upload ảnh trực tiếp - Bọc Transaction an toàn & Tự động Rollback nếu lỗi
+    /// </summary>
+    [Authorize(Roles = "Admin_Super")]
+    [HttpPost("with-images")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateProductWithImages([FromForm] string productJson, [FromForm(Name = "files")] List<IFormFile>? files)
+    {
+        CreateProductRequestDto? request;
+        try
+        {
+            request = JsonSerializer.Deserialize<CreateProductRequestDto>(productJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Dữ liệu sản phẩm không hợp lệ."));
+        }
+
+        if (request == null)
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Thiếu dữ liệu sản phẩm."));
+
+        var imageFiles = files ?? new List<IFormFile>();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+
+        if (imageFiles.Any(file => file.Length == 0 || file.Length > 5 * 1024 * 1024 || !allowedExtensions.Contains(Path.GetExtension(file.FileName))))
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Lỗi tải ảnh: chỉ nhận JPG, JPEG, PNG, WEBP và mỗi ảnh tối đa 5MB."));
+        }
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = long.TryParse(userIdClaim, out var uid) ? uid : 1;
+
+        var executionStrategy = _dbContext.Database.CreateExecutionStrategy();
+        try
+        {
+            var created = await executionStrategy.ExecuteAsync(async () =>
+            {
+                var writtenFiles = new List<string>();
+                await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    // 1. Lưu thông tin cơ bản sản phẩm
+                    var product = await _productService.CreateProductAsync(request, userId);
+
+                    // 2. Lưu file ảnh nếu có
+                    if (imageFiles.Count > 0)
+                    {
+                        var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath)
+                            ? Path.Combine(_env.ContentRootPath, "wwwroot")
+                            : _env.WebRootPath;
+                        var uploadsDir = Path.Combine(webRoot, "uploads", "products");
+                        Directory.CreateDirectory(uploadsDir);
+
+                        var imageUrls = new List<string>();
+                        foreach (var imageFile in imageFiles)
+                        {
+                            var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+                            var fileName = $"product-{product.Id}-{Guid.NewGuid():N}{extension}";
+                            var filePath = Path.Combine(uploadsDir, fileName);
+
+                            writtenFiles.Add(filePath);
+
+                            await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                            await imageFile.CopyToAsync(stream);
+
+                            imageUrls.Add($"{Request.Scheme}://{Request.Host}/uploads/products/{fileName}");
+                        }
+
+                        var updated = await _productService.UpdateProductImagesAsync(product.Id, imageUrls);
+                        if (updated == null) throw new InvalidOperationException("Không thể liên kết ảnh với sản phẩm vừa tạo.");
+                        product = updated;
+                    }
+
+                    // 3. Commit thành công
+                    await transaction.CommitAsync();
+                    return product;
+                }
+                catch
+                {
+                    // Tự động Rollback Database & Xóa File rác đã lưu
+                    try { await transaction.RollbackAsync(); } catch { }
+                    _dbContext.ChangeTracker.Clear();
+                    foreach (var filePath in writtenFiles)
+                    {
+                        try { if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath); } catch { }
+                    }
+                    throw;
+                }
+            });
+
+            return CreatedAtAction(nameof(GetProductById), new { id = created.Id }, ApiResponse<ProductDetailDto>.Ok(created, "Tạo sản phẩm xuất khẩu thành công."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("đã tồn tại", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Mã SKU này đã tồn tại, vui lòng nhập SKU khác"));
+        }
+        catch (DbUpdateException ex) when (IsDuplicateSkuError(ex))
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Mã SKU này đã tồn tại, vui lòng nhập SKU khác"));
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status500InternalServerError, "Không thể tạo sản phẩm. Hệ thống đã rollback dữ liệu an toàn, vui lòng thử lại."));
+        }
     }
 
     [Authorize(Roles = "Admin_Super")]
@@ -108,111 +231,70 @@ public class ProductsController : BaseApiController
         {
             return Conflict(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status409Conflict, ex.Message));
         }
+        catch (DbUpdateException ex) when (IsDuplicateSkuError(ex))
+        {
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Mã SKU này đã tồn tại, vui lòng nhập SKU khác"));
+        }
     }
 
     [Authorize(Roles = "Admin_Super")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> DeleteProduct(long id)
     {
-        var deleted = await _productService.DeleteProductAsync(id);
-        return deleted ? NoContent() : NotFound();
-    }
-
-    /// <summary>
-    /// Cập nhật đường dẫn ảnh minh họa cho sản phẩm (Admin)
-    /// </summary>
-    [Authorize(Roles = "Admin_Super")]
-    [HttpPut("{id:long}/image")]
-    [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateProductImage(long id, [FromBody] UpdateProductImageRequestDto request)
-    {
-        var updated = await _productService.UpdateProductImageAsync(id, request.ImageUrl);
-        if (updated == null)
+        try
         {
-            return NotFound(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status404NotFound, $"Không tìm thấy sản phẩm có ID = {id}"));
+            var deleted = await _productService.DeleteProductAsync(id);
+            return deleted ? NoContent() : NotFound(ApiResponse<object>.Fail(StatusCodes.Status404NotFound, "Sản phẩm không tồn tại hoặc đã bị xóa."));
         }
-
-        return Ok(ApiResponse<ProductDetailDto>.Ok(updated, "Cập nhật ảnh sản phẩm thành công."));
-    }
-
-    /// <summary>
-    /// Tải file ảnh sản phẩm trực tiếp từ thiết bị (Laptop, PC,...) của Admin lên Server
-    /// </summary>
-    [Authorize(Roles = "Admin_Super")]
-    [HttpPost("{id:long}/upload-image")]
-    [ProducesResponseType(typeof(ApiResponse<ProductDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UploadProductImage(long id, IFormFile? file)
-    {
-        if (file == null || file.Length == 0)
+        catch (Exception ex)
         {
-            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Vui lòng chọn file ảnh hợp lệ từ thiết bị."));
+            return BadRequest(ApiResponse<object>.Fail(StatusCodes.Status400BadRequest, $"Không thể xóa sản phẩm do đang có ràng buộc dữ liệu: {ex.Message}"));
         }
-
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-        var ext = Path.GetExtension(file.FileName);
-        if (string.IsNullOrWhiteSpace(ext) || !allowedExtensions.Contains(ext))
-        {
-            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Chỉ hỗ trợ định dạng ảnh .jpg, .jpeg, .png, .webp, .gif."));
-        }
-
-        var webRoot = _env.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
-        {
-            webRoot = Path.Combine(_env.ContentRootPath, "wwwroot");
-        }
-
-        var uploadsDir = Path.Combine(webRoot, "uploads", "products");
-        Directory.CreateDirectory(uploadsDir);
-
-        var fileName = $"product-{id}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext.ToLowerInvariant()}";
-        var filePath = Path.Combine(uploadsDir, fileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var publicImageUrl = $"{baseUrl}/uploads/products/{fileName}";
-
-        var updated = await _productService.UpdateProductImageAsync(id, publicImageUrl);
-        if (updated == null)
-        {
-            return NotFound(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status404NotFound, $"Không tìm thấy sản phẩm có ID = {id}"));
-        }
-
-        return Ok(ApiResponse<ProductDetailDto>.Ok(updated, "Đã tải ảnh từ thiết bị lên Server và cập nhật sản phẩm thành công."));
     }
 
     [Authorize(Roles = "Admin_Super")]
     [HttpPost("{id:long}/images")]
-    public async Task<IActionResult> UploadProductImages(long id, [FromForm] List<IFormFile> files)
+    public async Task<IActionResult> UploadProductImages(long id, [FromForm(Name = "files")] List<IFormFile> files)
     {
-        if (files.Count == 0 || files.Any(file => file.Length == 0))
+        if (files == null || files.Count == 0 || files.Any(file => file.Length == 0))
             return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Vui lòng chọn ít nhất một ảnh hợp lệ."));
 
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-        if (files.Any(file => !allowedExtensions.Contains(Path.GetExtension(file.FileName))))
-            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF."));
+        if (files.Any(file => file.Length > 5 * 1024 * 1024))
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Lỗi tải ảnh: mỗi ảnh tối đa 5MB."));
 
-        if (await _productService.GetProductByIdAsync(id) == null) return NotFound();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+        if (files.Any(file => !allowedExtensions.Contains(Path.GetExtension(file.FileName))))
+            return BadRequest(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status400BadRequest, "Chỉ hỗ trợ ảnh JPG, PNG, WEBP."));
+
+        var product = await _productService.GetProductByIdAsync(id);
+        if (product == null) return NotFound(ApiResponse<ProductDetailDto>.Fail(StatusCodes.Status404NotFound, "Không tìm thấy sản phẩm."));
+
         var webRoot = string.IsNullOrWhiteSpace(_env.WebRootPath) ? Path.Combine(_env.ContentRootPath, "wwwroot") : _env.WebRootPath;
         var uploadsDir = Path.Combine(webRoot, "uploads", "products");
         Directory.CreateDirectory(uploadsDir);
-        var urls = (await _productService.GetProductByIdAsync(id))?.ImageUrls ?? new List<string>();
+
+        var urls = product.ImageUrls ?? new List<string>();
         foreach (var file in files)
         {
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             var fileName = $"product-{id}-{Guid.NewGuid():N}{extension}";
-            await using var stream = new FileStream(Path.Combine(uploadsDir, fileName), FileMode.Create);
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
             await file.CopyToAsync(stream);
             urls.Add($"{Request.Scheme}://{Request.Host}/uploads/products/{fileName}");
         }
 
         var updated = await _productService.UpdateProductImagesAsync(id, urls);
-        return Ok(ApiResponse<ProductDetailDto>.Ok(updated!, "Đã tải ảnh sản phẩm lên máy chủ."));
+        return Ok(ApiResponse<ProductDetailDto>.Ok(updated!, "Đã tải ảnh sản phẩm lên máy chủ thành công."));
+    }
+
+    private static bool IsDuplicateSkuError(Exception exception)
+    {
+        var message = exception.ToString();
+        return message.Contains("BaseSku", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("2601", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("2627", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -13,6 +13,7 @@ import { useProductImage, getDefaultProductImageUrl } from "@/utils/productImage
 import { ProductImageEditModal } from "@/components/admin/ProductImageEditModal";
 import { LandedCostCalculator } from "@/components/logistics/LandedCostCalculator";
 import { CbmVisualizer } from "@/components/portal/CbmVisualizer";
+import { getTranslation } from "@/lib/utils";
 import {
   Layers,
   ShoppingBag,
@@ -68,10 +69,7 @@ export default function ProductDetailPage() {
     return <main className="mx-auto max-w-3xl px-4 py-24 text-center">{isLoadingProduct ? <p className="text-slate-500">{isVi ? "Đang tải sản phẩm..." : "Loading product..."}</p> : <div className="space-y-4"><h1 className="text-2xl font-bold">{productLoadError ? (isVi ? "Không thể tải sản phẩm." : "Could not load this product.") : (isVi ? "Không tìm thấy sản phẩm." : "Product not found.")}</h1><Link href="/" className="inline-flex rounded bg-[#0E4B94] px-4 py-2 text-white">{isVi ? "Về trang chủ" : "Back to home"}</Link></div>}</main>;
   }
 
-  const currentTrans =
-    product.translations?.find((tr) => tr.languageCode === language) ||
-    product.translations?.find((tr) => tr.languageCode === "vi") ||
-    product.translations?.[0];
+  const currentTrans = getTranslation(product?.translations, language);
 
   const name = currentTrans?.name || product.baseSku;
   const desc = currentTrans?.shortDescription || "";

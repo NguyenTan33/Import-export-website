@@ -191,8 +191,8 @@ export const ContractManagementPanel: React.FC = () => {
             onChange={(e) => setSelectedRfqId(Number(e.target.value))}
             className="border border-black px-3 py-1.5 text-xs font-mono bg-neutral-50 font-bold focus:outline-none"
           >
-            {rfqs.map((r) => (
-              <option key={r.id} value={r.id}>
+            {rfqs.map((r, index) => (
+              <option key={r.id ?? r.rfqNumber ?? `rfq-${index}`} value={r.id ?? ""}>
                 {r.rfqNumber} — {r.companyName.substring(0, 28)}...
               </option>
             ))}

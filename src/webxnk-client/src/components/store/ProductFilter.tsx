@@ -4,9 +4,10 @@ import React from "react";
 import { Category } from "@/types";
 import { Search, Filter } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { getTranslation } from "@/lib/utils";
 
 interface ProductFilterProps {
-  categories: Category[];
+  categories?: Category[] | null;
   selectedCategoryId?: number;
   onSelectCategory: (categoryId?: number) => void;
   searchKeyword: string;
@@ -57,17 +58,14 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({
             {t("home.allCategories")}
           </button>
 
-          {categories.map((cat) => {
-            const trans =
-              cat.translations?.find((tr) => tr.languageCode === language) ||
-              cat.translations?.find((tr) => tr.languageCode === "vi") ||
-              cat.translations?.[0];
+          {(Array.isArray(categories) ? categories : []).map((cat, index) => {
+            const trans = getTranslation(cat?.translations, language);
             const name = trans?.name || cat.slug;
             const isSelected = selectedCategoryId === cat.id;
 
             return (
               <button
-                key={cat.id}
+                key={cat?.id ?? cat?.slug ?? `category-${index}`}
                 onClick={() => onSelectCategory(cat.id)}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors border ${
                   isSelected

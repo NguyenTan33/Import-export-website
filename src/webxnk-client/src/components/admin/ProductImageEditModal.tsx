@@ -21,6 +21,7 @@ import {
   resetProductImageToDefault,
 } from "@/utils/productImages";
 import { useLanguage } from "@/context/LanguageContext";
+import { getTranslation } from "@/lib/utils";
 
 interface ProductImageEditModalProps {
   product: Product;
@@ -54,11 +55,7 @@ export const ProductImageEditModal: React.FC<ProductImageEditModalProps> = ({
 
   if (!isOpen) return null;
 
-  const productName =
-    product.translations?.find((tr) => tr.languageCode === language)?.name ||
-    product.translations?.find((tr) => tr.languageCode === "vi")?.name ||
-    product.translations?.[0]?.name ||
-    product.baseSku;
+  const productName = getTranslation(product?.translations, language)?.name || product?.baseSku || "";
 
   const handleFilePicked = async (file: File) => {
     setErrorMsg("");

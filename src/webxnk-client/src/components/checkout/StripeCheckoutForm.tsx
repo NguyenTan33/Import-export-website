@@ -12,6 +12,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { getRecordCode, getTranslation } from "@/lib/utils";
 
 interface StripeCheckoutFormProps {
   product?: Product;
@@ -128,8 +129,9 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
         })),
       });
 
-      if (createdOrder?.orderNumber) {
-        finalOrderCode = createdOrder.orderNumber;
+      const returnedOrderCode = getRecordCode(createdOrder, ["orderNumber", "orderCode", "code", "id"]);
+      if (returnedOrderCode) {
+        finalOrderCode = returnedOrderCode;
       }
 
       if (createdOrder?.id) {
@@ -175,8 +177,7 @@ export const StripeCheckoutForm: React.FC<StripeCheckoutFormProps> = ({
             <strong>{isVi ? "Danh mục hàng hóa:" : "Order Items:"}</strong>
             {completedItems.map((item) => {
               const prodName =
-                item.product.translations?.find((tr) => tr.languageCode === language)?.name ||
-                item.product.translations?.[0]?.name ||
+                getTranslation(item?.product?.translations, language)?.name ||
                 item.product.baseSku;
               const uPrice = item.unitPriceUsd ?? item.product.defaultRetailPriceUsd;
               return (

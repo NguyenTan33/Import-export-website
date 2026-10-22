@@ -280,10 +280,10 @@ export const CounterOfferTimeline: React.FC<CounterOfferTimelineProps> = ({
             </div>
           ) : (
             <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
-              {offers.map((offer) => {
+              {offers.map((offer, index) => {
                 const isBuyer = offer.senderRole === "BUYER";
                 return (
-                  <div key={offer.id} className="relative group">
+                  <div key={offer.id ?? offer.revisionNumber ?? `offer-${index}`} className="relative group">
                     {/* Dot on timeline */}
                     <div
                       className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-white ${

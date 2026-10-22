@@ -61,7 +61,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
   const [selectedItemIdx, setSelectedItemIdx] = useState<number>(0);
   const [counterPrice, setCounterPrice] = useState<number>(0);
   const [isConnected, setIsConnected] = useState(false);
-  const [negotiationStatus, setNegotiationStatus] = useState<"ACTIVE" | "AGREED">("ACTIVE");
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [negotiationStatus, setNegotiationStatus] = useState<
+    "ACTIVE" | "AGREED"
+  >("ACTIVE");
   const [agreedTotal, setAgreedTotal] = useState<number>(currentTotalUsd);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,8 +73,11 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
   // Initialize messages and counter price
   useEffect(() => {
     if (isOpen) {
+      setIsConnected(false);
+      setConnectionFailed(false);
       const firstItem = items[0];
-      const initialPrice = firstItem?.quotedUnitPriceUsd || firstItem?.targetPriceUsd || 10;
+      const initialPrice =
+        firstItem?.quotedUnitPriceUsd || firstItem?.targetPriceUsd || 10;
       setCounterPrice(Number((initialPrice * 0.95).toFixed(2))); // Suggest 5% discount default
 
       const initialMsgs: ChatMessage[] = [
@@ -81,7 +87,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
           senderName: "Hệ thống WebXNK",
           senderRole: "System Bot",
           content: `Phiên đàm phán trực tuyến cho đơn báo giá ${rfqNumber} đã được khởi tạo. Kênh kết nối SignalR mã hóa SSL 256-bit.`,
-          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+          timestamp: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
         {
           id: "m2",
@@ -89,41 +98,80 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
           senderName: "Trần Anh Tuấn",
           senderRole: "Trưởng phòng Kinh doanh Quốc tế - Quang Tấn Hoàng",
           content: `Kính chào Quý đối tác! Tôi phụ trách hỗ trợ đàm phán hợp đồng cho đơn hàng xuất khẩu ${rfqNumber}. Quý khách vui lòng gửi mức giá đề xuất hoặc yêu cầu chiết khấu container theo sản lượng thực tế.`,
-          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+          timestamp: new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
       ];
       setMessages(initialMsgs);
 
       // Attempt SignalR Hub connection
-      const hubUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1")
-        .replace("/api/v1", "") + "/hubs/negotiation";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+      const hubUrl = `${apiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "")}/hubs/negotiation`;
 
       const connection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
           skipNegotiation: true,
           transport: signalR.HttpTransportType.WebSockets,
+          accessTokenFactory: () => window.localStorage.getItem("webxnk_token") || "",
         })
         .withAutomaticReconnect()
         .build();
-
-      connection
-        .start()
-        .then(() => {
-          setIsConnected(true);
-          connection.invoke("JoinRfqRoom", rfqId.toString()).catch(() => {});
-          connection.on("ReceiveNegotiationMessage", (msg: ChatMessage) => {
-            setMessages((prev) => [...prev, msg]);
-          });
-        })
-        .catch(() => {
-          // Graceful fallback to interactive bot simulation
-          setIsConnected(true);
-        });
-
       hubRef.current = connection;
+      let disposed = false;
+      const receiveMessage = (message: ChatMessage) => {
+        if (!message || typeof message.content !== "string") return;
+        setMessages((previous) => [...previous, message]);
+      };
+      connection.on("ReceiveNegotiationMessage", receiveMessage);
+      connection.onreconnecting(() => {
+        if (!disposed) setIsConnected(false);
+      });
+      connection.onreconnected(() => {
+        if (!disposed) {
+          setIsConnected(true);
+          setConnectionFailed(false);
+          void connection.invoke("JoinRfqRoom", String(rfqId)).catch(() => {
+            setIsConnected(false);
+            setConnectionFailed(true);
+          });
+        }
+      });
+      connection.onclose(() => {
+        if (!disposed) {
+          setIsConnected(false);
+          setConnectionFailed(true);
+        }
+      });
+
+      const startConnection = async () => {
+        if (connection.state !== signalR.HubConnectionState.Disconnected) return;
+        try {
+          await connection.start();
+          if (disposed) return;
+          await connection.invoke("JoinRfqRoom", String(rfqId));
+          if (!disposed) {
+            setIsConnected(true);
+            setConnectionFailed(false);
+          }
+        } catch {
+          if (!disposed) {
+            setIsConnected(false);
+            setConnectionFailed(true);
+          }
+        }
+      };
+      void startConnection();
 
       return () => {
-        connection.stop().catch(() => {});
+        disposed = true;
+        connection.off("ReceiveNegotiationMessage", receiveMessage);
+        if (hubRef.current === connection) hubRef.current = null;
+        if (connection.state !== signalR.HubConnectionState.Disconnected &&
+            connection.state !== signalR.HubConnectionState.Disconnecting) {
+          void connection.stop().catch(() => {});
+        }
       };
     }
   }, [isOpen, rfqId, rfqNumber, items]);
@@ -143,11 +191,26 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
       senderName: "Doanh nghiệp của bạn",
       senderRole: "Đại diện Thu mua (Buyer)",
       content: inputMessage.trim(),
-      timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
-    setMessages((prev) => [...prev, newMsg]);
     setInputMessage("");
+
+    const connection = hubRef.current;
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      void connection.invoke("SendNegotiationMessage", rfqId, newMsg.content)
+        .catch(() => {
+          setIsConnected(false);
+          setConnectionFailed(true);
+          setMessages((previous) => [...previous, newMsg]);
+        });
+      return;
+    }
+
+    setMessages((prev) => [...prev, newMsg]);
 
     // Simulate Sales Specialist automated response
     setTimeout(() => {
@@ -157,7 +220,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
         senderName: "Trần Anh Tuấn",
         senderRole: "Trưởng phòng Kinh doanh Quốc tế - Quang Tấn Hoàng",
         content: `Cảm ơn Quý đối tác. Ban giám đốc Quang Tấn Hoàng đã xem xét đề xuất. Đối với đơn hàng đóng container chuẩn xuất khẩu, chúng tôi có thể áp dụng chính sách chiết khấu theo biểu giá bậc thang mới nhất.`,
-        timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
       setMessages((prev) => [...prev, salesReply]);
     }, 1200);
@@ -168,7 +234,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
     if (!item) return;
 
     const currentPrice = item.quotedUnitPriceUsd || item.targetPriceUsd || 10;
-    const discountPercent = (((currentPrice - counterPrice) / currentPrice) * 100).toFixed(1);
+    const discountPercent = (
+      ((currentPrice - counterPrice) / currentPrice) *
+      100
+    ).toFixed(1);
 
     const offerMsg: ChatMessage = {
       id: `offer_${Date.now()}`,
@@ -176,7 +245,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
       senderName: "Doanh nghiệp của bạn",
       senderRole: "Đại diện Thu mua (Buyer)",
       content: `Chúng tôi đề xuất mức giá mới cho mặt hàng "${item.productName}" (SL: ${item.quantity.toLocaleString()} cái): từ $${currentPrice.toFixed(2)} USD giảm còn $${counterPrice.toFixed(2)} USD/đơn vị (Chiết khấu ${discountPercent}%).`,
-      timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       counterOffer: {
         itemIndex: selectedItemIdx,
         productName: item.productName,
@@ -186,6 +258,17 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
       },
     };
 
+    const connection = hubRef.current;
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      void connection.invoke("SendNegotiationMessage", rfqId, offerMsg.content, offerMsg.counterOffer)
+        .catch(() => {
+          setIsConnected(false);
+          setConnectionFailed(true);
+          setMessages((previous) => [...previous, offerMsg]);
+        });
+      return;
+    }
+
     setMessages((prev) => [...prev, offerMsg]);
 
     // Sales Department Response to counter-offer
@@ -193,7 +276,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
       const agreedUnitPrice = Number((counterPrice * 1.01).toFixed(2)); // Minor compromise or full accept
       const finalPrice = Math.min(counterPrice, agreedUnitPrice);
       const newTotal = items.reduce((sum, it, idx) => {
-        const p = idx === selectedItemIdx ? finalPrice : (it.quotedUnitPriceUsd || it.targetPriceUsd || 10);
+        const p =
+          idx === selectedItemIdx
+            ? finalPrice
+            : it.quotedUnitPriceUsd || it.targetPriceUsd || 10;
         return sum + p * it.quantity;
       }, 0);
 
@@ -203,7 +289,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
         senderName: "Trần Anh Tuấn",
         senderRole: "Trưởng phòng Kinh doanh Quốc tế - Quang Tấn Hoàng",
         content: `[QUANG TẤN HOÀNG CHẤP THUẬN BÁO GIÁ] Công ty Quang Tấn Hoàng đồng ý mức giá ưu đãi $${finalPrice.toFixed(2)} USD/đơn vị cho lô hàng ${item.quantity.toLocaleString()} sản phẩm. Tổng giá trị đơn hàng sau chiết khấu là $${newTotal.toLocaleString("en-US")} USD theo điều kiện FOB Cát Lái. Quý khách có thể xác nhận để hệ thống xuất Proforma Invoice cập nhật!`,
-        timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         counterOffer: {
           itemIndex: selectedItemIdx,
           productName: item.productName,
@@ -229,7 +318,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
       senderName: "Hệ thống WebXNK",
       senderRole: "System Bot",
       content: `ĐƠN HÀNG ĐÃ ĐƯỢC CHỐT GIÁ THÀNH CÔNG! Tổng giá trị hợp đồng mới: $${agreedTotal.toLocaleString("en-US")} USD. Bản Proforma Invoice chính thức đã được đồng bộ vào hệ thống.`,
-      timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
     setMessages((prev) => [...prev, finalSysMsg]);
   };
@@ -250,7 +342,7 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                 </h3>
                 <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {isConnected ? "SignalR Live" : "Đang kết nối..."}
+                  {isConnected ? "SignalR Live" : connectionFailed ? "Ngoại tuyến · mô phỏng cục bộ" : "Đang kết nối..."}
                 </span>
               </div>
               <p className="text-[11px] text-neutral-400 font-mono">
@@ -280,8 +372,12 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
         {/* Status Bar */}
         <div className="bg-neutral-100 border-b border-neutral-200 px-5 py-2 flex flex-wrap items-center justify-between text-xs font-mono">
           <div className="flex items-center gap-4 text-neutral-600">
-            <span><strong>Mã RFQ:</strong> #{rfqId}</span>
-            <span><strong>Số mặt hàng:</strong> {items.length} sp</span>
+            <span>
+              <strong>Mã RFQ:</strong> #{rfqId}
+            </span>
+            <span>
+              <strong>Số mặt hàng:</strong> {items?.length} sp
+            </span>
             <span className="flex items-center gap-1 text-[#0E4B94]">
               <ShieldCheck className="w-3.5 h-3.5" />
               Bảo mật đàm phán hợp đồng B2B
@@ -303,10 +399,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
         <div className="flex-1 flex overflow-hidden">
           {/* Messages Column */}
           <div className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4 bg-neutral-50/50">
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               if (msg.sender === "SYSTEM") {
                 return (
-                  <div key={msg.id} className="text-center my-2">
+                  <div key={msg.id ?? `message-${index}`} className="text-center my-2">
                     <span className="inline-block bg-neutral-200 text-neutral-700 text-[11px] font-mono px-3 py-1 rounded">
                       {msg.content}
                     </span>
@@ -318,15 +414,21 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
 
               return (
                 <div
-                  key={msg.id}
+                  key={msg.id ?? `message-${index}`}
                   className={`flex gap-3 max-w-[85%] ${isBuyer ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
                   <div
                     className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                      isBuyer ? "bg-black text-white" : "bg-[#0E4B94] text-white"
+                      isBuyer
+                        ? "bg-black text-white"
+                        : "bg-[#0E4B94] text-white"
                     }`}
                   >
-                    {isBuyer ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                    {isBuyer ? (
+                      <User className="w-4 h-4" />
+                    ) : (
+                      <Building2 className="w-4 h-4" />
+                    )}
                   </div>
 
                   <div>
@@ -335,8 +437,12 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                         isBuyer ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <span className="font-bold text-neutral-900">{msg.senderName}</span>
-                      <span className="text-neutral-400 font-mono text-[10px]">{msg.timestamp}</span>
+                      <span className="font-bold text-neutral-900">
+                        {msg.senderName}
+                      </span>
+                      <span className="text-neutral-400 font-mono text-[10px]">
+                        {msg.timestamp}
+                      </span>
                     </div>
 
                     <div
@@ -355,12 +461,14 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                             msg.counterOffer.status === "ACCEPTED"
                               ? "bg-emerald-950 text-emerald-200 border-emerald-500"
                               : isBuyer
-                              ? "bg-neutral-900 text-neutral-200 border-neutral-700"
-                              : "bg-neutral-50 text-neutral-800 border-neutral-300"
+                                ? "bg-neutral-900 text-neutral-200 border-neutral-700"
+                                : "bg-neutral-50 text-neutral-800 border-neutral-300"
                           }`}
                         >
                           <div className="flex items-center justify-between font-bold pb-1 border-b border-white/10 mb-1.5">
-                            <span>ĐỀ XUẤT GIÁ: {msg.counterOffer.productName}</span>
+                            <span>
+                              ĐỀ XUẤT GIÁ: {msg.counterOffer.productName}
+                            </span>
                             <span
                               className={`px-1.5 py-0.5 rounded text-[10px] ${
                                 msg.counterOffer.status === "ACCEPTED"
@@ -368,19 +476,25 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                                   : "bg-amber-500/20 text-amber-300"
                               }`}
                             >
-                              {msg.counterOffer.status === "ACCEPTED" ? "ĐÃ CHẤP THUẬN" : "CHỜ DUYỆT"}
+                              {msg.counterOffer.status === "ACCEPTED"
+                                ? "ĐÃ CHẤP THUẬN"
+                                : "CHỜ DUYỆT"}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
                             <div>
-                              <span className="text-[10px] text-neutral-400 block">Giá gốc:</span>
+                              <span className="text-[10px] text-neutral-400 block">
+                                Giá gốc:
+                              </span>
                               <span className="line-through text-red-300">
                                 ${msg.counterOffer.oldPrice.toFixed(2)} USD
                               </span>
                             </div>
                             <span className="text-neutral-400">→</span>
                             <div>
-                              <span className="text-[10px] text-neutral-400 block">Giá đề xuất:</span>
+                              <span className="text-[10px] text-neutral-400 block">
+                                Giá đề xuất:
+                              </span>
                               <span className="text-emerald-400 font-black">
                                 ${msg.counterOffer.newPrice.toFixed(2)} USD
                               </span>
@@ -417,12 +531,15 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                 onChange={(e) => {
                   const idx = Number(e.target.value);
                   setSelectedItemIdx(idx);
-                  const p = items[idx]?.quotedUnitPriceUsd || items[idx]?.targetPriceUsd || 10;
+                  const p =
+                    items[idx]?.quotedUnitPriceUsd ||
+                    items[idx]?.targetPriceUsd ||
+                    10;
                   setCounterPrice(Number((p * 0.95).toFixed(2)));
                 }}
                 className="w-full border border-neutral-300 p-2 text-xs font-mono bg-neutral-50 focus:outline-none focus:border-black"
               >
-                {items.map((it, idx) => (
+                {items?.map((it, idx) => (
                   <option key={idx} value={idx}>
                     {it.productName} ({it.quantity} cái)
                   </option>
@@ -436,7 +553,9 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                 Mức giá mong muốn (USD/đơn vị):
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs font-mono text-neutral-400">$</span>
+                <span className="absolute left-3 top-2 text-xs font-mono text-neutral-400">
+                  $
+                </span>
                 <input
                   type="number"
                   step="0.01"
@@ -479,7 +598,8 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({
                 <span>Quy tắc đàm phán</span>
               </div>
               <p>
-                Mọi điều khoản giá được xác nhận trên kênh SignalR đều có giá trị pháp lý trong hợp đồng ngoại thương tương ứng.
+                Mọi điều khoản giá được xác nhận trên kênh SignalR đều có giá
+                trị pháp lý trong hợp đồng ngoại thương tương ứng.
               </p>
             </div>
           </div>
