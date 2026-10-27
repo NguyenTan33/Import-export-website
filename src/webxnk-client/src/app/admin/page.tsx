@@ -198,8 +198,8 @@ export default function AdminPage() {
           <FileSignature className="w-4 h-4 text-[#0E4B94]" />
           <span className="min-w-0 break-words text-center">
             {isVi
-              ? "8. Hợp Đồng Ngoại Thương & Ký Số (E-Contract)"
-              : "8. E-Contract & Digital Signature"}
+              ? "8. Hợp Đồng Ngoại Thương & Đàm Phán B2B (Chat Realtime)"
+              : "8. E-Contract & Live B2B Negotiation"}
           </span>
         </button>
       </div>

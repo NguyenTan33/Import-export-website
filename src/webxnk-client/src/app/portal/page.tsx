@@ -45,6 +45,18 @@ import { CounterOfferTimeline } from "@/components/portal/CounterOfferTimeline";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 
+const getEffectiveRfqTotal = (rfq?: RfqRequestDto | null): number => {
+  if (!rfq) return 0;
+  if (rfq.totalQuotedAmountUsd && rfq.totalQuotedAmountUsd > 0) {
+    return rfq.totalQuotedAmountUsd;
+  }
+  const itemsSubtotal = rfq.items?.reduce((sum, it) => {
+    const price = it.quotedUnitPriceUsd || it.targetPriceUsd || 0;
+    return sum + price * it.quantity;
+  }, 0) || 0;
+  return itemsSubtotal + (rfq.oceanFreightCostUsd || 0) + (rfq.marineInsuranceCostUsd || 0);
+};
+
 function PortalContent() {
   const searchParams = useSearchParams();
   const initialProductIdParam = searchParams?.get("productId")
@@ -124,7 +136,7 @@ function PortalContent() {
         const firstPayableRfq = safeRfqs.find((rfq) => Number.isFinite(rfq.id) && (rfq.id ?? 0) > 0);
         if (firstPayableRfq?.id) {
           setSelectedPaymentRfqId(firstPayableRfq.id);
-          setPaymentAmountUsd(Number(((firstPayableRfq.totalQuotedAmountUsd || 0) * 0.3).toFixed(2)));
+          setPaymentAmountUsd(Number((getEffectiveRfqTotal(firstPayableRfq) * 0.3).toFixed(2)));
         } else {
           setSelectedPaymentRfqId(0);
           setPaymentAmountUsd(0);
@@ -150,7 +162,7 @@ function PortalContent() {
     setSelectedPaymentRfqId(rfqId);
     setPaymentStage(stage);
     const targetRfq = rfqs.find((r) => r.id === rfqId);
-    const totalUsd = targetRfq?.totalQuotedAmountUsd || 0;
+    const totalUsd = getEffectiveRfqTotal(targetRfq);
     const ratio = stage === "DEPOSIT_30" ? 0.3 : 0.7;
     setPaymentAmountUsd(Number((totalUsd * ratio).toFixed(2)));
   };
@@ -719,7 +731,7 @@ function PortalContent() {
                   </div>
                   <div className="text-right font-black text-black text-sm">
                     {isVi ? "Tổng tiền báo giá: " : "Quotation Subtotal: "}
-                    <span className="text-[#0E4B94]">${(rfq.totalQuotedAmountUsd || 0).toLocaleString("en-US")} USD</span>
+                    <span className="text-[#0E4B94]">${getEffectiveRfqTotal(rfq).toLocaleString("en-US")} USD</span>
                   </div>
                 </div>
 
@@ -841,7 +853,7 @@ function PortalContent() {
                 >
                   {rfqs.map((r, index) => (
                     <option key={r.id ?? r.rfqNumber ?? `payment-rfq-${index}`} value={r.id ?? ""}>
-                      {r.rfqNumber} — ${(r.totalQuotedAmountUsd || 0).toLocaleString("en-US")} USD ({r.incotermCode})
+                      {r.rfqNumber} — ${getEffectiveRfqTotal(r).toLocaleString("en-US")} USD ({r.incotermCode})
                     </option>
                   ))}
                 </select>
@@ -1069,7 +1081,7 @@ function PortalContent() {
           onClose={() => setChatModalOpen(false)}
           rfqNumber={activeRfqForChat.rfqNumber || "RFQ-2026-EXP"}
           rfqId={activeRfqForChat.id ?? 0}
-          currentTotalUsd={activeRfqForChat.totalQuotedAmountUsd ?? 0}
+          currentTotalUsd={getEffectiveRfqTotal(activeRfqForChat)}
           items={Array.isArray(activeRfqForChat.items) ? activeRfqForChat.items : []}
           onAcceptPrice={handlePriceAgreed}
         />

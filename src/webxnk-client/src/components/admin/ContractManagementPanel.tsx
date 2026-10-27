@@ -1,10 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { adminApi, contractsApi } from "@/services/api";
+import { adminApi, contractsApi, rfqApi } from "@/services/api";
 import { SalesContract, RfqCounterOffer, SubmitCounterOfferRequest } from "@/types";
 import { CounterOfferTimeline } from "@/components/portal/CounterOfferTimeline";
 import { SalesContractViewer } from "@/components/portal/SalesContractViewer";
+import {
+  NegotiationChatModal,
+  NegotiationItem,
+} from "@/components/portal/NegotiationChatModal";
 import {
   FileCheck,
   FileSignature,
@@ -13,6 +17,7 @@ import {
   AlertCircle,
   PlusCircle,
   Layers,
+  MessageSquare,
 } from "lucide-react";
 
 interface AdminRfqSummary {
@@ -27,9 +32,11 @@ interface AdminRfqSummary {
 export const ContractManagementPanel: React.FC = () => {
   const [rfqs, setRfqs] = useState<AdminRfqSummary[]>([]);
   const [selectedRfqId, setSelectedRfqId] = useState<number>(0);
-  const [activeSubTab, setActiveSubTab] = useState<"negotiate" | "contract">("contract");
+  const [activeSubTab, setActiveSubTab] = useState<"contract" | "negotiate" | "chat">("contract");
   const [contract, setContract] = useState<SalesContract | null>(null);
   const [offers, setOffers] = useState<RfqCounterOffer[]>([]);
+  const [rfqItems, setRfqItems] = useState<NegotiationItem[]>([]);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -44,22 +51,35 @@ export const ContractManagementPanel: React.FC = () => {
       .catch(() => setStatusMessage("Không thể tải danh sách RFQ từ máy chủ."));
   }, []);
 
-  // Load contract and counter offers for selected RFQ
+  // Load contract, counter offers and rfq items for selected RFQ
   const loadData = useCallback(async (rfqId: number) => {
     if (!rfqId) {
       setContract(null);
       setOffers([]);
+      setRfqItems([]);
       return;
     }
     setIsLoading(true);
     setStatusMessage(null);
     try {
-      const [contractData, offersData] = await Promise.all([
-        contractsApi.getContractByRfqId(rfqId),
-        contractsApi.getCounterOffers(rfqId),
+      const [contractData, offersData, rfqDetail] = await Promise.all([
+        contractsApi.getContractByRfqId(rfqId).catch(() => null),
+        contractsApi.getCounterOffers(rfqId).catch(() => []),
+        rfqApi.getRfqById(rfqId).catch(() => null),
       ]);
       setContract(contractData);
       setOffers(offersData);
+      if (rfqDetail?.items) {
+        setRfqItems(
+          rfqDetail.items.map((it) => ({
+            productId: it.productId,
+            productName: it.productName,
+            quantity: it.quantity,
+            quotedUnitPriceUsd: it.quotedUnitPriceUsd,
+            targetPriceUsd: it.targetPriceUsd,
+          }))
+        );
+      }
     } catch {
       setContract(null);
       setOffers([]);
@@ -163,25 +183,27 @@ export const ContractManagementPanel: React.FC = () => {
     }
   };
 
+  const selectedRfq = rfqs.find((r) => r.id === selectedRfqId);
+
   return (
     <div className="border border-black bg-white p-6 space-y-6">
       {/* Header */}
       <div className="border-b border-black pb-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-            E-CONTRACT & B2B NEGOTIATION SUITE (EXP-80 TO EXP-89)
+            E-CONTRACT & B2B REALTIME NEGOTIATION SUITE (EXP-53, EXP-80 TO EXP-89)
           </span>
           <h2 className="text-xl font-black uppercase tracking-tight text-black flex items-center gap-2">
             <FileSignature className="w-5 h-5 text-[#0E4B94]" />
-            Quản Lý Hợp Đồng Ngoại Thương & Đàm Phán B2B Đa Vòng
+            Quản Lý Hợp Đồng Ngoại Thương & Đàm Phán B2B Trực Tuyến
           </h2>
           <p className="text-xs text-neutral-600 mt-1 font-mono">
-            Hợp đồng ICC Model International Sale Contract, chữ ký điện tử kép, mộc đỏ pháp nhân và mã băm SHA-256.
+            Hợp đồng ICC Model International Sale Contract, ký số kép, mộc đỏ pháp nhân và kênh đàm phán SignalR hai chiều.
           </p>
         </div>
 
-        {/* RFQ Selector */}
-        <div className="flex items-center gap-3">
+        {/* RFQ Selector & Quick Actions */}
+        <div className="flex flex-wrap items-center gap-3">
           <label className="text-xs font-mono font-bold text-black flex items-center gap-1.5">
             <Building className="w-4 h-4 text-[#0E4B94]" />
             Chọn Đơn RFQ:
@@ -198,6 +220,18 @@ export const ContractManagementPanel: React.FC = () => {
             ))}
           </select>
 
+          {/* Quick Chat Button */}
+          <button
+            type="button"
+            onClick={() => setIsChatModalOpen(true)}
+            disabled={!selectedRfqId}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0E4B94] text-white text-xs font-bold font-mono uppercase hover:bg-[#0a376d] transition rounded disabled:opacity-50 shadow-sm"
+            title="Mở phòng đàm phán trực tuyến Realtime (SignalR)"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Chat Đàm Phán Realtime</span>
+          </button>
+
           <button
             onClick={() => loadData(selectedRfqId)}
             disabled={!selectedRfqId || isLoading}
@@ -210,7 +244,7 @@ export const ContractManagementPanel: React.FC = () => {
       </div>
 
       {/* Sub-tab navigation */}
-      <div className="flex border-b border-neutral-300 gap-2">
+      <div className="flex flex-wrap border-b border-neutral-300 gap-2">
         <button
           onClick={() => setActiveSubTab("contract")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-mono font-bold uppercase transition-colors border-b-2 -mb-px ${
@@ -247,6 +281,18 @@ export const ContractManagementPanel: React.FC = () => {
           <Layers className="w-4 h-4" />
           <span>Lịch Sử Đàm Phán Đa Vòng ({offers.length} Vòng)</span>
         </button>
+
+        <button
+          onClick={() => setActiveSubTab("chat")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono font-bold uppercase transition-colors border-b-2 -mb-px ${
+            activeSubTab === "chat"
+              ? "border-[#0E4B94] text-[#0E4B94] bg-blue-50/50"
+              : "border-transparent text-neutral-500 hover:text-black"
+          }`}
+        >
+          <MessageSquare className="w-4 h-4 text-[#0E4B94]" />
+          <span>Kênh Đàm Phán Trực Tuyến Realtime (SignalR)</span>
+        </button>
       </div>
 
       {/* Feedback banner */}
@@ -261,42 +307,29 @@ export const ContractManagementPanel: React.FC = () => {
       {activeSubTab === "contract" && (
         <div className="space-y-4">
           {!contract ? (
-            <div className="border-2 border-dashed border-neutral-300 p-8 text-center bg-neutral-50 rounded-xl space-y-3">
-              <AlertCircle className="w-8 h-8 text-neutral-400 mx-auto" />
-              <div className="text-sm font-bold text-neutral-700">
-                {selectedRfqId ? `Chưa có hợp đồng nào được tạo cho RFQ #${selectedRfqId}` : "Chưa có RFQ trong CSDL."}
+            <div className="border border-neutral-300 bg-neutral-50 p-8 rounded text-center space-y-4">
+              <div className="text-sm font-mono text-neutral-600">
+                Chưa có hợp đồng chính thức nào được khởi tạo cho đơn RFQ này.
               </div>
-              <p className="text-xs text-neutral-500 max-w-md mx-auto font-mono">
-                Sau khi đàm phán giá và các điều khoản thành công, bạn có thể tạo hợp đồng chuẩn ICC
-                Model Contract tự động với đầy đủ các điều 1 đến 6.
+              <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                Sau khi kết thúc quá trình đàm phán giá và các điều khoản Incoterms, bạn có thể tự động sinh hợp đồng chuẩn ICC quốc tế.
               </p>
               <button
                 onClick={handleGenerateContract}
                 disabled={isLoading || !selectedRfqId}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase bg-[#0E4B94] text-white hover:bg-blue-800 transition rounded shadow"
+                className="px-4 py-2 bg-[#0E4B94] text-white text-xs font-mono font-bold uppercase hover:bg-black transition rounded inline-flex items-center gap-2 disabled:opacity-50"
               >
                 <PlusCircle className="w-4 h-4" />
-                Khởi Tạo Hợp Đồng Ngoại Thương
+                <span>Khởi Tạo Hợp Đồng ICC Từ RFQ Này</span>
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-neutral-50 p-3 border border-neutral-200 rounded text-xs font-mono">
-                <div className="flex items-center gap-4">
-                  <span>
-                    Mã Hợp Đồng: <strong className="text-black">{contract.contractNumber}</strong>
-                  </span>
-                  <span>
-                    Tổng Giá Trị:{" "}
-                    <strong className="text-[#0E4B94]">
-                      ${contract.totalAmountUsd.toLocaleString()} USD
-                    </strong>
-                  </span>
-                  <span>
-                    Incoterms: <strong className="text-black">{contract.incotermCode}</strong>
-                  </span>
-                </div>
-
+              <div className="flex items-center justify-between bg-neutral-50 p-3 border border-neutral-200 rounded">
+                <span className="text-xs font-mono font-bold text-neutral-700">
+                  Số Hợp Đồng: <strong className="text-black">{contract.contractNumber}</strong> | Trạng thái:{" "}
+                  <span className="text-[#0E4B94]">{contract.status}</span>
+                </span>
                 <div className="flex items-center gap-2">
                   {contract.status === "DRAFT" && (
                     <button
@@ -326,11 +359,11 @@ export const ContractManagementPanel: React.FC = () => {
         <div className="space-y-4">
           <CounterOfferTimeline
             rfqId={selectedRfqId}
-            currentStatus={rfqs.find((rfq) => rfq.id === selectedRfqId)?.status ?? ""}
+            currentStatus={selectedRfq?.status ?? ""}
             offers={offers}
             userRole="ADMIN"
             currentUnitPrice={0}
-            currentIncoterm={rfqs.find((rfq) => rfq.id === selectedRfqId)?.incotermCode ?? ""}
+            currentIncoterm={selectedRfq?.incotermCode ?? ""}
             currentPaymentTerms=""
             onSubmitCounterOffer={handleSubmitOffer}
             onAcceptCounterOffer={handleAcceptOffer}
@@ -339,6 +372,56 @@ export const ContractManagementPanel: React.FC = () => {
             hasContract={!!contract}
           />
         </div>
+      )}
+
+      {/* Sub-tab 3: Live SignalR Negotiation Chat Panel */}
+      {activeSubTab === "chat" && (
+        <div className="border border-neutral-300 bg-neutral-50 p-8 rounded-lg text-center space-y-4">
+          <div className="inline-flex p-4 bg-blue-100 rounded-full text-[#0E4B94]">
+            <MessageSquare className="w-8 h-8" />
+          </div>
+          <div className="max-w-lg mx-auto">
+            <h3 className="text-base font-bold text-black uppercase font-mono">
+              Phòng Thương Lượng Trực Tuyến Realtime (SignalR)
+            </h3>
+            <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+              Kênh kết nối WebSocket mã hóa trực tiếp giữa Ban Quản Trị / Chuyên Viên Kinh Doanh Quang Tấn Hoàng và Doanh nghiệp{" "}
+              <strong>{selectedRfq?.companyName || "B2B Buyer"}</strong> cho đơn hàng{" "}
+              <strong>{selectedRfq?.rfqNumber}</strong>.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setIsChatModalOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E4B94] text-white text-xs font-bold font-mono uppercase hover:bg-[#0a376d] transition rounded shadow-md"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Mở Phòng Chat Đàm Phán Realtime Với Đối Tác</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Realtime Chat Modal for Admin */}
+      {selectedRfq && (
+        <NegotiationChatModal
+          isOpen={isChatModalOpen}
+          onClose={() => setIsChatModalOpen(false)}
+          rfqNumber={selectedRfq.rfqNumber}
+          rfqId={selectedRfq.id}
+          currentTotalUsd={
+            selectedRfq.totalQuotedAmountUsd > 0
+              ? selectedRfq.totalQuotedAmountUsd
+              : rfqItems.reduce((sum, it) => sum + (it.quotedUnitPriceUsd || it.targetPriceUsd || 0) * it.quantity, 0)
+          }
+          items={rfqItems}
+          isStaff={true}
+          buyerCompanyName={selectedRfq.companyName}
+          onAcceptPrice={() => {
+            void loadData(selectedRfq.id);
+          }}
+        />
       )}
     </div>
   );
