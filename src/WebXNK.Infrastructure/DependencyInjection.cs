@@ -15,16 +15,13 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
         services.AddDbContext<WebXnkDbContext>(options =>
-        {
             options.UseSqlServer(connectionString, sqlOptions =>
             {
                 sqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorNumbersToAdd: null);
-            });
-            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-        });
+            }));
 
         services.AddScoped<WebXNK.Application.Common.Interfaces.IApplicationDbContext>(provider => 
             provider.GetRequiredService<WebXnkDbContext>());
@@ -37,6 +34,9 @@ public static class DependencyInjection
 
         // Tích hợp QuestPDF Document Service tự sinh Proforma Invoice, Commercial Invoice, Packing List (EXP-56, EXP-69)
         services.AddScoped<WebXNK.Application.Interfaces.IExportDocumentService, Services.Documents.QuestPdfExportDocumentService>();
+
+        // Tích hợp Hợp đồng ngoại thương điện tử E-Contract & Đàm phán B2B đa vòng
+        services.AddScoped<WebXNK.Application.Interfaces.IContractService, Services.ContractService>();
 
         // Background worker tự động giải phóng hàng giữ chỗ quá hạn 30 phút (EXP-79)
         services.AddHostedService<Services.BackgroundJobs.ExpiredReservationCleanupWorker>();

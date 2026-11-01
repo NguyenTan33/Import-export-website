@@ -70,6 +70,7 @@ public class RfqService : IRfqService
 
         decimal totalCbm = 0;
         decimal totalGrossWeightKg = 0;
+        decimal goodsSubtotal = 0;
         var rfqItems = new List<RfqItem>();
 
         foreach (var itemReq in request.Items)
@@ -111,16 +112,53 @@ public class RfqService : IRfqService
             totalCbm += itemCbm;
             totalGrossWeightKg += itemGrossWeight;
 
+            // Xác định đơn giá theo bậc số lượng MOQ hoặc giá đề xuất TargetPrice
+            var matchingTier = product.PriceTiers
+                .Where(t => itemReq.Quantity >= t.MinQuantity && (!t.MaxQuantity.HasValue || itemReq.Quantity <= t.MaxQuantity.Value))
+                .OrderByDescending(t => t.MinQuantity)
+                .FirstOrDefault();
+
+            decimal appliedUnitPrice = matchingTier?.UnitPriceUsd 
+                ?? (itemReq.TargetPriceUsd.HasValue && itemReq.TargetPriceUsd.Value > 0 
+                    ? itemReq.TargetPriceUsd.Value 
+                    : product.DefaultRetailPriceUsd);
+
+            goodsSubtotal += Math.Round(appliedUnitPrice * itemReq.Quantity, 2);
+
             rfqItems.Add(new RfqItem
             {
                 ProductId = product.Id,
                 Quantity = itemReq.Quantity,
-                TargetPriceUsd = itemReq.TargetPriceUsd,
+                TargetPriceUsd = itemReq.TargetPriceUsd ?? appliedUnitPrice,
+                QuotedUnitPriceUsd = appliedUnitPrice,
                 CalculatedCbm = itemCbm,
                 CustomRequirements = itemReq.CustomRequirements
             });
         }
 
+        // Tính toán cước tàu và bảo hiểm theo Incoterms đã chọn
+        decimal oceanFreight = 0;
+        decimal marineInsurance = 0;
+        try
+        {
+            var incotermsCalc = await _incotermsService.CalculateIncotermsQuoteAsync(new CalculateIncotermsQuoteRequestDto
+            {
+                IncotermCode = request.IncotermCode.Trim().ToUpperInvariant(),
+                PortOfLoading = request.PortOfLoading,
+                PortOfDischarge = request.PortOfDischarge,
+                GoodsSubtotalUsd = goodsSubtotal,
+                TotalCbm = totalCbm,
+                TotalGrossWeightKg = totalGrossWeightKg
+            });
+            oceanFreight = incotermsCalc.OceanFreightCostUsd;
+            marineInsurance = incotermsCalc.MarineInsuranceCostUsd;
+        }
+        catch
+        {
+            // Dự phòng nếu không tính được cước tự động
+        }
+
+        var totalQuotedAmount = goodsSubtotal + oceanFreight + marineInsurance;
         var suggestedContainer = _statePolicy.SuggestContainerType(totalCbm);
         var rfqNumber = $"RFQ-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
@@ -132,10 +170,14 @@ public class RfqService : IRfqService
             PortOfLoading = request.PortOfLoading,
             PortOfDischarge = request.PortOfDischarge,
             TargetDeliveryDate = request.TargetDeliveryDate,
+            PriceValidityUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
             Status = "SUBMITTED",
             TotalCbm = totalCbm,
             TotalGrossWeightKg = totalGrossWeightKg,
             SuggestedContainerType = suggestedContainer,
+            OceanFreightCostUsd = oceanFreight,
+            MarineInsuranceCostUsd = marineInsurance,
+            TotalQuotedAmountUsd = totalQuotedAmount,
             CreatedAt = DateTime.UtcNow,
             RfqItems = rfqItems
         };
@@ -153,6 +195,9 @@ public class RfqService : IRfqService
             .Include(r => r.RfqItems)
                 .ThenInclude(ri => ri.Product)
                     .ThenInclude(p => p.Translations)
+            .Include(r => r.RfqItems)
+                .ThenInclude(ri => ri.Product)
+                    .ThenInclude(p => p.PriceTiers)
             .Include(r => r.NegotiationHistories)
                 .ThenInclude(nh => nh.SenderUser)
             .FirstOrDefaultAsync(r => r.Id == rfqId);
@@ -176,6 +221,36 @@ public class RfqService : IRfqService
             }
         }
 
+        // Tự động chuẩn hóa tổng tiền nếu trước đó bị 0
+        if (rfq.TotalQuotedAmountUsd <= 0 && rfq.RfqItems.Any())
+        {
+            decimal sub = 0;
+            foreach (var it in rfq.RfqItems)
+            {
+                if (it.QuotedUnitPriceUsd.HasValue && it.QuotedUnitPriceUsd.Value > 0)
+                {
+                    sub += it.QuotedUnitPriceUsd.Value * it.Quantity;
+                }
+                else if (it.TargetPriceUsd.HasValue && it.TargetPriceUsd.Value > 0)
+                {
+                    it.QuotedUnitPriceUsd = it.TargetPriceUsd.Value;
+                    sub += it.TargetPriceUsd.Value * it.Quantity;
+                }
+                else if (it.Product != null)
+                {
+                    var tier = it.Product.PriceTiers?
+                        .Where(t => it.Quantity >= t.MinQuantity && (!t.MaxQuantity.HasValue || it.Quantity <= t.MaxQuantity.Value))
+                        .OrderByDescending(t => t.MinQuantity)
+                        .FirstOrDefault();
+                    decimal p = tier?.UnitPriceUsd ?? it.Product.DefaultRetailPriceUsd;
+                    it.QuotedUnitPriceUsd = p;
+                    sub += p * it.Quantity;
+                }
+            }
+            rfq.TotalQuotedAmountUsd = sub + rfq.OceanFreightCostUsd + rfq.MarineInsuranceCostUsd;
+            await _context.SaveChangesAsync();
+        }
+
         return rfq.ToDetailDto();
     }
 
@@ -183,9 +258,49 @@ public class RfqService : IRfqService
     {
         var rfqs = await _context.RfqRequests
             .Include(r => r.Company)
+            .Include(r => r.RfqItems)
+                .ThenInclude(ri => ri.Product)
+                    .ThenInclude(p => p.PriceTiers)
             .Where(r => r.CompanyId == companyId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+
+        bool needSave = false;
+        foreach (var rfq in rfqs)
+        {
+            if (rfq.TotalQuotedAmountUsd <= 0 && rfq.RfqItems.Any())
+            {
+                decimal sub = 0;
+                foreach (var it in rfq.RfqItems)
+                {
+                    if (it.QuotedUnitPriceUsd.HasValue && it.QuotedUnitPriceUsd.Value > 0)
+                    {
+                        sub += it.QuotedUnitPriceUsd.Value * it.Quantity;
+                    }
+                    else if (it.TargetPriceUsd.HasValue && it.TargetPriceUsd.Value > 0)
+                    {
+                        it.QuotedUnitPriceUsd = it.TargetPriceUsd.Value;
+                        sub += it.TargetPriceUsd.Value * it.Quantity;
+                    }
+                    else if (it.Product != null)
+                    {
+                        var tier = it.Product.PriceTiers?
+                            .Where(t => it.Quantity >= t.MinQuantity && (!t.MaxQuantity.HasValue || it.Quantity <= t.MaxQuantity.Value))
+                            .OrderByDescending(t => t.MinQuantity)
+                            .FirstOrDefault();
+                        decimal p = tier?.UnitPriceUsd ?? it.Product.DefaultRetailPriceUsd;
+                        it.QuotedUnitPriceUsd = p;
+                        sub += p * it.Quantity;
+                    }
+                }
+                rfq.TotalQuotedAmountUsd = sub + rfq.OceanFreightCostUsd + rfq.MarineInsuranceCostUsd;
+                needSave = true;
+            }
+        }
+        if (needSave)
+        {
+            await _context.SaveChangesAsync();
+        }
 
         return rfqs.Select(r => r.ToSummaryDto()).ToList();
     }
@@ -203,7 +318,12 @@ public class RfqService : IRfqService
 
     public async Task<List<RfqSummaryDto>> GetAllRfqsAsync(string? status = null)
     {
-        var query = _context.RfqRequests.Include(r => r.Company).AsQueryable();
+        var query = _context.RfqRequests
+            .Include(r => r.Company)
+            .Include(r => r.RfqItems)
+                .ThenInclude(ri => ri.Product)
+                    .ThenInclude(p => p.PriceTiers)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -211,6 +331,44 @@ public class RfqService : IRfqService
         }
 
         var rfqs = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+
+        bool needSave = false;
+        foreach (var rfq in rfqs)
+        {
+            if (rfq.TotalQuotedAmountUsd <= 0 && rfq.RfqItems.Any())
+            {
+                decimal sub = 0;
+                foreach (var it in rfq.RfqItems)
+                {
+                    if (it.QuotedUnitPriceUsd.HasValue && it.QuotedUnitPriceUsd.Value > 0)
+                    {
+                        sub += it.QuotedUnitPriceUsd.Value * it.Quantity;
+                    }
+                    else if (it.TargetPriceUsd.HasValue && it.TargetPriceUsd.Value > 0)
+                    {
+                        it.QuotedUnitPriceUsd = it.TargetPriceUsd.Value;
+                        sub += it.TargetPriceUsd.Value * it.Quantity;
+                    }
+                    else if (it.Product != null)
+                    {
+                        var tier = it.Product.PriceTiers?
+                            .Where(t => it.Quantity >= t.MinQuantity && (!t.MaxQuantity.HasValue || it.Quantity <= t.MaxQuantity.Value))
+                            .OrderByDescending(t => t.MinQuantity)
+                            .FirstOrDefault();
+                        decimal p = tier?.UnitPriceUsd ?? it.Product.DefaultRetailPriceUsd;
+                        it.QuotedUnitPriceUsd = p;
+                        sub += p * it.Quantity;
+                    }
+                }
+                rfq.TotalQuotedAmountUsd = sub + rfq.OceanFreightCostUsd + rfq.MarineInsuranceCostUsd;
+                needSave = true;
+            }
+        }
+        if (needSave)
+        {
+            await _context.SaveChangesAsync();
+        }
+
         return rfqs.Select(r => r.ToSummaryDto()).ToList();
     }
 

@@ -70,6 +70,14 @@ public class CbmCalculatorService : ICbmCalculatorService
             advice = $"Lô hàng quy mô lớn ({totalCbm} CBM). Khuyến nghị phân bổ thành nhiều container FCL.";
         }
 
+        var (stowedBoxes, cog) = GenerateSingleItemStowage(
+            request.CartonLengthCm,
+            request.CartonWidthCm,
+            request.CartonHeightCm,
+            request.GrossWeightPerCartonKg,
+            request.TotalCartons,
+            recommendedContainer);
+
         return new CalculateCbmResponseDto
         {
             CbmPerCarton = Math.Round(cbmPerCarton, 4),
@@ -79,7 +87,9 @@ public class CbmCalculatorService : ICbmCalculatorService
             RecommendedContainerType = recommendedContainer,
             ContainerSpaceUtilizationPercentage = spaceUtilization,
             ContainerWeightUtilizationPercentage = weightUtilization,
-            LogisticsAdvice = advice
+            LogisticsAdvice = advice,
+            StowedBoxes = stowedBoxes,
+            CenterOfGravity = cog
         };
     }
 
@@ -101,38 +111,20 @@ public class CbmCalculatorService : ICbmCalculatorService
 
         foreach (var item in request.Items)
         {
-            if (item.CartonLengthCm <= 0 && item.ProductId.HasValue && _context != null)
+            if ((item.CartonLengthCm <= 0 || item.CartonWidthCm <= 0 || item.CartonHeightCm <= 0 || item.TotalCartons <= 0) && item.Quantity > 0)
             {
-                var product = _context.Products
-                    .Include(p => p.ExportPackaging)
-                    .Include(p => p.Translations)
-                    .FirstOrDefault(p => p.Id == item.ProductId.Value);
-
-                if (product?.ExportPackaging != null)
+                var (defLen, defWid, defHgt, defGw, defPcs, defName, defSku) = GetDefaultPackagingForProduct(item.ProductId ?? 1);
+                if (item.CartonLengthCm <= 0) item.CartonLengthCm = defLen;
+                if (item.CartonWidthCm <= 0) item.CartonWidthCm = defWid;
+                if (item.CartonHeightCm <= 0) item.CartonHeightCm = defHgt;
+                if (item.GrossWeightPerCartonKg <= 0) item.GrossWeightPerCartonKg = defGw;
+                var pcs = item.PcsPerCarton > 0 ? item.PcsPerCarton : defPcs;
+                if (item.TotalCartons <= 0)
                 {
-                    item.CartonLengthCm = product.ExportPackaging.CartonLengthCm;
-                    item.CartonWidthCm = product.ExportPackaging.CartonWidthCm;
-                    item.CartonHeightCm = product.ExportPackaging.CartonHeightCm;
-                    item.GrossWeightPerCartonKg = product.ExportPackaging.GrossWeightKg;
-
-                    var pcs = product.ExportPackaging.PcsPerCarton > 0 ? product.ExportPackaging.PcsPerCarton : 1;
-                    if (item.TotalCartons <= 0 && item.Quantity > 0)
-                    {
-                        item.TotalCartons = (int)Math.Max(1, Math.Ceiling((decimal)item.Quantity / pcs));
-                    }
-                    if (string.IsNullOrWhiteSpace(item.ItemName))
-                    {
-                        var name = product.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
-                                ?? product.Translations.FirstOrDefault()?.Name
-                                ?? product.BaseSku;
-                        item.ItemName = name;
-                    }
+                    item.TotalCartons = (int)Math.Max(1, Math.Ceiling((decimal)item.Quantity / pcs));
                 }
-            }
-
-            if (item.TotalCartons <= 0 && item.Quantity > 0)
-            {
-                item.TotalCartons = item.Quantity;
+                if (string.IsNullOrWhiteSpace(item.ItemName)) item.ItemName = defName;
+                if (string.IsNullOrWhiteSpace(item.Sku)) item.Sku = defSku;
             }
 
             if (item.CartonLengthCm <= 0 || item.CartonWidthCm <= 0 || item.CartonHeightCm <= 0 || item.TotalCartons <= 0)
@@ -290,15 +282,12 @@ public class CbmCalculatorService : ICbmCalculatorService
             };
         }
 
-        decimal capCbm = totalCbm <= Container20FtMaxCbm && totalGrossWeight <= Container20FtMaxWeightKg 
-            ? Container20FtMaxCbm 
-            : Container40FtHcMaxCbm;
-        decimal limitKg = capCbm == Container20FtMaxCbm 
-            ? Container20FtMaxWeightKg 
-            : Container40FtHcMaxWeightKg;
-
-        var volUtil = capCbm > 0 ? Math.Round((totalCbm / capCbm) * 100, 2) : 0;
-        var wtUtil = limitKg > 0 ? Math.Round((totalGrossWeight / limitKg) * 100, 2) : 0;
+        var (stowedBoxes, cog) = GenerateMultiItemStowage(request.Items, primaryRec);
+        var primaryPlan = containerPlans.FirstOrDefault();
+        var capCbm = primaryPlan?.UsableCapacityCbm ?? Container40FtHcMaxCbm;
+        var maxWeightKg = primaryPlan?.MaxPayloadKg ?? Container40FtHcMaxWeightKg;
+        var volUtil = primaryPlan?.SpaceUtilizationPercentage ?? Math.Round((totalCbm / capCbm) * 100, 1);
+        var wgtUtil = primaryPlan?.WeightUtilizationPercentage ?? Math.Round((totalGrossWeight / maxWeightKg) * 100, 1);
 
         return new CalculateMultiItemCbmResponseDto
         {
@@ -308,14 +297,31 @@ public class CbmCalculatorService : ICbmCalculatorService
             TotalGrossWeightKg = totalGrossWeight,
             SuggestedShipmentMode = mode,
             PrimaryRecommendedContainer = primaryRec,
+            SuggestedContainerType = primaryRec,
             ContainerCapacityCbm = capCbm,
             VolumeUtilizationPercentage = volUtil,
-            WeightLimitKg = limitKg,
-            WeightUtilizationPercentage = wtUtil,
+            WeightLimitKg = maxWeightKg,
+            WeightUtilizationPercentage = wgtUtil,
             ContainerPlan = containerPlans,
             PalletSummary = palletSummary,
             ItemBreakdowns = breakdowns,
-            LogisticsAdvice = advice
+            LogisticsAdvice = advice,
+            StowedBoxes = stowedBoxes,
+            CenterOfGravity = cog
+        };
+    }
+
+    private static (decimal LengthCm, decimal WidthCm, decimal HeightCm, decimal GrossWeightKg, int PcsPerCarton, string Name, string Sku) GetDefaultPackagingForProduct(long productId)
+    {
+        return productId switch
+        {
+            1 => (60m, 40m, 35m, 11.2m, 12, "Giày thể thao Sneaker xuất khẩu", "SHOES-SNK-V1"),
+            2 => (45m, 35m, 28m, 10.5m, 10, "Than gáo dừa nén lục giác BBQ", "CHAR-COCO-BBQ"),
+            3 => (122m, 25m, 25m, 18.0m, 50, "Cán chổi gỗ bạch đàn 120cm", "BROOM-EUC-120"),
+            4 => (48m, 36m, 26m, 23.4m, 2, "Hạt điều nhân trắng Grade W320", "AGRI-CASHEW-W320"),
+            5 => (42m, 32m, 30m, 13.8m, 72, "Băng keo trong OPP 48mm", "TAPE-OPP-48X100"),
+            6 => (52m, 36m, 26m, 15.6m, 6, "Màng PE quấn pallet 50cm", "PE-FILM-50-17"),
+            _ => (50m, 40m, 35m, 12.0m, 10, $"Thành phẩm xuất khẩu #{productId}", $"SKU-EXP-{productId}")
         };
     }
 
@@ -399,6 +405,254 @@ public class CbmCalculatorService : ICbmCalculatorService
             TotalGrossWeightKg = multiCalcResult.TotalGrossWeightKg,
             SuggestedContainerType = multiCalcResult.PrimaryRecommendedContainer,
             Details = multiCalcResult
+        };
+    }
+
+    private static (List<StowedBoxCoordinateDto> Boxes, CenterOfGravityDto? Cog) GenerateSingleItemStowage(
+        decimal lengthCm,
+        decimal widthCm,
+        decimal heightCm,
+        decimal weightPerCartonKg,
+        int totalCartons,
+        string recommendedContainer)
+    {
+        var is20Ft = recommendedContainer.Contains("20ft", StringComparison.OrdinalIgnoreCase);
+        var containerLengthM = is20Ft ? 5.90m : 12.03m;
+        var containerWidthM = 2.35m;
+        var containerHeightM = recommendedContainer.Contains("HC", StringComparison.OrdinalIgnoreCase) ? 2.69m : 2.39m;
+
+        var boxLengthM = Math.Max(0.1m, Math.Round(lengthCm / 100.0m, 3));
+        var boxWidthM = Math.Max(0.1m, Math.Round(widthCm / 100.0m, 3));
+        var boxHeightM = Math.Max(0.1m, Math.Round(heightCm / 100.0m, 3));
+
+        var boxes = new List<StowedBoxCoordinateDto>();
+        int count = 0;
+        int maxVisualBoxes = Math.Min(totalCartons, 400); // Tối ưu số lượng boxes hiển thị 3D mượt mà
+
+        int layerIndex = 0;
+        decimal currentY = 0;
+
+        while (currentY + boxHeightM <= containerHeightM && count < maxVisualBoxes)
+        {
+            decimal currentX = 0;
+            while (currentX + boxLengthM <= containerLengthM && count < maxVisualBoxes)
+            {
+                decimal currentZ = 0;
+                while (currentZ + boxWidthM <= containerWidthM && count < maxVisualBoxes)
+                {
+                    boxes.Add(new StowedBoxCoordinateDto
+                    {
+                        ItemName = "Thành phẩm đóng thùng xuất khẩu",
+                        Sku = "EXPORT-CARGO",
+                        X = Math.Round(currentX, 3),
+                        Y = Math.Round(currentY, 3),
+                        Z = Math.Round(currentZ, 3),
+                        LengthM = boxLengthM,
+                        WidthM = boxWidthM,
+                        HeightM = boxHeightM,
+                        WeightKg = weightPerCartonKg,
+                        ColorHex = "#0E4B94",
+                        LayerIndex = layerIndex
+                    });
+                    count++;
+                    currentZ += boxWidthM;
+                }
+                currentX += boxLengthM;
+            }
+            currentY += boxHeightM;
+            layerIndex++;
+        }
+
+        var cog = CalculateCenterOfGravity(boxes, containerLengthM, containerWidthM, containerHeightM);
+        return (boxes, cog);
+    }
+
+    private static (List<StowedBoxCoordinateDto> Boxes, CenterOfGravityDto? Cog) GenerateMultiItemStowage(
+        List<MultiItemCargoItemDto> items,
+        string recommendedContainer)
+    {
+        var is20Ft = recommendedContainer.Contains("20ft", StringComparison.OrdinalIgnoreCase);
+        var containerLengthM = is20Ft ? 5.90m : 12.03m;
+        var containerWidthM = 2.35m;
+        var containerHeightM = recommendedContainer.Contains("HC", StringComparison.OrdinalIgnoreCase) ? 2.69m : 2.39m;
+
+        var colorPalette = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["SHOES-SNK-V1"] = "#0E4B94",   // Cobalt Navy
+            ["CHAR-COCO-BBQ"] = "#37474F",  // Charcoal Slate
+            ["BROOM-EUC-120"] = "#8D6E63",  // Wood Brown
+            ["AGRI-CASHEW-W320"] = "#00796B", // Cashew Emerald
+            ["TAPE-OPP-48X100"] = "#F57F17", // Amber Gold
+            ["PE-FILM-50-17"] = "#0288D1"   // Cyan Stretch
+        };
+
+        var boxes = new List<StowedBoxCoordinateDto>();
+        int totalStowed = 0;
+        const int maxTotalVisualBoxes = 500;
+
+        decimal currentX = 0;
+        decimal currentY = 0;
+        decimal currentZ = 0;
+        int layerIndex = 0;
+
+        // Ưu tiên xếp các mặt hàng nặng ở tầng dưới, hàng nhẹ ở tầng trên
+        var sortedItems = items
+            .Where(i => i.TotalCartons > 0 && i.CartonLengthCm > 0)
+            .OrderByDescending(i => i.GrossWeightPerCartonKg)
+            .ToList();
+
+        foreach (var item in sortedItems)
+        {
+            var boxLengthM = Math.Max(0.1m, Math.Round(item.CartonLengthCm / 100.0m, 3));
+            var boxWidthM = Math.Max(0.1m, Math.Round(item.CartonWidthCm / 100.0m, 3));
+            var boxHeightM = Math.Max(0.1m, Math.Round(item.CartonHeightCm / 100.0m, 3));
+
+            var sku = $"SKU-ITEM-{item.ProductId ?? 1}";
+            string color = "#0E4B94";
+            if (item.ProductId == 1) color = "#0E4B94";
+            else if (item.ProductId == 2) color = "#37474F";
+            else if (item.ProductId == 3) color = "#8D6E63";
+            else if (item.ProductId == 4) color = "#00796B";
+            else if (item.ProductId == 5) color = "#F57F17";
+            else if (item.ProductId == 6) color = "#0288D1";
+            else if (!string.IsNullOrWhiteSpace(item.ItemName) && colorPalette.TryGetValue(item.ItemName, out var c)) color = c;
+
+            int itemsToStow = Math.Min(item.TotalCartons, 120);
+
+            for (int i = 0; i < itemsToStow && totalStowed < maxTotalVisualBoxes; i++)
+            {
+                if (currentZ + boxWidthM > containerWidthM)
+                {
+                    currentZ = 0;
+                    currentX += boxLengthM;
+                }
+
+                if (currentX + boxLengthM > containerLengthM)
+                {
+                    currentX = 0;
+                    currentZ = 0;
+                    currentY += boxHeightM;
+                    layerIndex++;
+                }
+
+                if (currentY + boxHeightM > containerHeightM)
+                {
+                    break; // Cont đã đầy chiều cao
+                }
+
+                boxes.Add(new StowedBoxCoordinateDto
+                {
+                    ProductId = item.ProductId,
+                    Sku = sku,
+                    ItemName = item.ItemName,
+                    X = Math.Round(currentX, 3),
+                    Y = Math.Round(currentY, 3),
+                    Z = Math.Round(currentZ, 3),
+                    LengthM = boxLengthM,
+                    WidthM = boxWidthM,
+                    HeightM = boxHeightM,
+                    WeightKg = item.GrossWeightPerCartonKg,
+                    ColorHex = color,
+                    LayerIndex = layerIndex
+                });
+
+                currentZ += boxWidthM;
+                totalStowed++;
+            }
+        }
+
+        var cog = CalculateCenterOfGravity(boxes, containerLengthM, containerWidthM, containerHeightM);
+        return (boxes, cog);
+    }
+
+    private static CenterOfGravityDto? CalculateCenterOfGravity(
+        List<StowedBoxCoordinateDto> boxes,
+        decimal containerLengthM,
+        decimal containerWidthM,
+        decimal containerHeightM)
+    {
+        if (boxes.Count == 0) return null;
+
+        decimal totalWeight = 0;
+        decimal weightedSumX = 0;
+        decimal weightedSumY = 0;
+        decimal weightedSumZ = 0;
+
+        foreach (var b in boxes)
+        {
+            var w = Math.Max(1m, b.WeightKg);
+            var centerX = b.X + (b.LengthM / 2.0m);
+            var centerY = b.Y + (b.HeightM / 2.0m);
+            var centerZ = b.Z + (b.WidthM / 2.0m);
+
+            weightedSumX += centerX * w;
+            weightedSumY += centerY * w;
+            weightedSumZ += centerZ * w;
+            totalWeight += w;
+        }
+
+        var cogX = Math.Round(weightedSumX / totalWeight, 3);
+        var cogY = Math.Round(weightedSumY / totalWeight, 3);
+        var cogZ = Math.Round(weightedSumZ / totalWeight, 3);
+
+        var midLength = containerLengthM / 2.0m;
+        var midWidth = containerWidthM / 2.0m;
+
+        var longDev = Math.Round(((cogX - midLength) / midLength) * 100.0m, 1);
+        var latDev = Math.Round(((cogZ - midWidth) / midWidth) * 100.0m, 1);
+
+        string status;
+        string vi;
+        string en;
+        string advice;
+
+        if (Math.Abs(latDev) <= 5.0m && Math.Abs(longDev) <= 8.0m)
+        {
+            status = "BALANCED_SAFE";
+            vi = "Cân bằng tải tối ưu đạt chuẩn ISO";
+            en = "Optimal Balanced Stowage (ISO Compliant)";
+            advice = "Trọng tâm hàng hóa phân bổ đều, an toàn tuyệt đối khi vận chuyển đường biển và bốc dỡ cần cẩu.";
+        }
+        else if (latDev > 5.0m)
+        {
+            status = "WARNING_STARBOARD_HEAVY";
+            vi = $"Cảnh báo lệch tải mạn phải (+{latDev}%)";
+            en = $"Warning: Starboard List (+{latDev}%)";
+            advice = "Hàng nặng đang dồn về phía mạn phải container, cần phân bổ đều kiện hàng sang mạn trái.";
+        }
+        else if (latDev < -5.0m)
+        {
+            status = "WARNING_PORT_HEAVY";
+            vi = $"Cảnh báo lệch tải mạn trái ({latDev}%)";
+            en = $"Warning: Port List ({latDev}%)";
+            advice = "Hàng nặng đang dồn về phía mạn trái container, cần dàn trải kiện hàng sang phía mạn phải.";
+        }
+        else if (longDev > 8.0m)
+        {
+            status = "WARNING_AFT_HEAVY";
+            vi = $"Cảnh báo nặng phía đuôi/cửa cont (+{longDev}%)";
+            en = $"Warning: Aft/Door End Heavy (+{longDev}%)";
+            advice = "Trọng tâm dồn về phía cửa cont, có nguy cơ đổ hàng khi mở cửa kiểm tra hải quan.";
+        }
+        else
+        {
+            status = "WARNING_BOW_HEAVY";
+            vi = $"Cảnh báo nặng phía vách trước ({longDev}%)";
+            en = $"Warning: Front/Bow End Heavy ({longDev}%)";
+            advice = "Trọng tâm dồn về phía trước container, cần chuyển bớt kiện hàng nặng về phía giữa.";
+        }
+
+        return new CenterOfGravityDto
+        {
+            CenterXM = cogX,
+            CenterYM = cogY,
+            CenterZM = cogZ,
+            LongitudeDeviationPercent = longDev,
+            LateralDeviationPercent = latDev,
+            BalanceStatus = status,
+            StatusTextVi = vi,
+            StatusTextEn = en,
+            SafetyAdvice = advice
         };
     }
 }

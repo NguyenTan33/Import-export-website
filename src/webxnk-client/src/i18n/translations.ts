@@ -69,8 +69,8 @@ export const translations: Record<Language, Record<string, string>> = {
     // Home & Catalog
     "home.badge": "HỆ THỐNG XUẤT KHẨU CHÍNH NGẠCH & THƯƠNG MẠI ĐIỆN TỬ HYBRID",
     "home.heroTitle1": "NỀN TẢNG XUẤT KHẨU",
-    "home.heroTitle2": "QUỐC TẾ",
-    "home.heroTitle3": "& BÁN LẺ CAO CẤP",
+    "home.heroTitle2": "QUỐC TẾ & BÁN LẺ",
+    "home.heroTitle3": "",
     "home.heroDesc": "Cung cấp nguồn hàng xuất khẩu chủ lực Việt Nam đạt chuẩn CE, FDA, ISO. Hỗ trợ tối ưu hóa thể tích đóng thùng Container CBM, đàm phán hợp đồng trực tuyến và xuất bộ chứng từ ngoại thương tự động.",
     "home.heroBtnB2b": "Yêu Cầu Báo Giá Doanh Nghiệp (B2B)",
     "home.heroBtnCbm": "Mô Phỏng Thể Tích Đóng Container CBM",
@@ -305,9 +305,9 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Home & Catalog
     "home.badge": "OFFICIAL EXPORT TRADE & HYBRID E-COMMERCE PLATFORM",
-    "home.heroTitle1": "GLOBAL EXPORT",
-    "home.heroTitle2": "PLATFORM",
-    "home.heroTitle3": "& PREMIUM COMMERCE",
+    "home.heroTitle1": "GLOBAL EXPORT PLATFORM",
+    "home.heroTitle2": "& RETAIL STOREFRONT",
+    "home.heroTitle3": "",
     "home.heroDesc": "Providing Vietnam core export commodities certified to CE, FDA, and ISO standards. Featuring automated container CBM optimization, realtime contract negotiation, and instant export trade document generation.",
     "home.heroBtnB2b": "Request Enterprise Quotation (B2B)",
     "home.heroBtnCbm": "Container CBM Packing Simulator",

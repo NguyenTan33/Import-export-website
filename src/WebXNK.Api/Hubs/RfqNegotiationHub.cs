@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 
 namespace WebXNK.Api.Hubs;
@@ -8,10 +9,20 @@ namespace WebXNK.Api.Hubs;
 /// </summary>
 public class RfqNegotiationHub : Hub
 {
+    // Lưu trữ lịch sử tin nhắn đàm phán trong bộ nhớ theo RFQ để khi Admin/Buyer mở phòng chat sẽ thấy toàn bộ trao đổi trước đó
+    private static readonly ConcurrentDictionary<string, List<object>> _chatHistories = new();
+
     public async Task JoinRfqGroup(long rfqId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, GetGroupName(rfqId));
+        var groupName = GetGroupName(rfqId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         await Clients.Caller.SendAsync("JoinedRfqGroup", rfqId);
+
+        // Gửi toàn bộ lịch sử tin nhắn đàm phán đã có cho bên mới kết nối
+        if (_chatHistories.TryGetValue(groupName, out var history) && history.Count > 0)
+        {
+            await Clients.Caller.SendAsync("LoadChatHistory", history);
+        }
     }
 
     public async Task LeaveRfqGroup(long rfqId)
@@ -23,32 +34,25 @@ public class RfqNegotiationHub : Hub
     // Tương thích với frontend invoke: connection.invoke("JoinRfqRoom", rfqId.toString())
     public async Task JoinRfqRoom(string rfqId)
     {
-        if (long.TryParse(rfqId, out var id))
+        var groupKey = long.TryParse(rfqId, out var id) ? GetGroupName(id) : $"rfq_{rfqId}";
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupKey);
+
+        if (_chatHistories.TryGetValue(groupKey, out var history) && history.Count > 0)
         {
-            await JoinRfqGroup(id);
-        }
-        else
-        {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"rfq_{rfqId}");
+            await Clients.Caller.SendAsync("LoadChatHistory", history);
         }
     }
 
     public async Task LeaveRfqRoom(string rfqId)
     {
-        if (long.TryParse(rfqId, out var id))
-        {
-            await LeaveRfqGroup(id);
-        }
-        else
-        {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"rfq_{rfqId}");
-        }
+        var groupKey = long.TryParse(rfqId, out var id) ? GetGroupName(id) : $"rfq_{rfqId}";
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupKey);
     }
 
     public async Task SendMessageToRfq(long rfqId, string message, decimal? proposedTotal)
     {
-        var senderName = Context.User?.Identity?.Name ?? "User";
         var isStaff = Context.User?.IsInRole("Admin_Super") == true || Context.User?.IsInRole("Sales_Executive") == true;
+        var senderName = Context.User?.Identity?.Name ?? (isStaff ? "Chuyên viên Kinh Doanh" : "Khách Hàng Doanh Nghiệp");
         var senderRole = isStaff ? "Sales_Executive" : "Buyer";
 
         var payload = new
@@ -61,10 +65,7 @@ public class RfqNegotiationHub : Hub
             Timestamp = DateTime.UtcNow
         };
 
-        // Broadcast đến cả 2 kênh sự kiện để tương thích mọi client
-        await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveRfqMessage", payload);
-
-        await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveNegotiationMessage", new
+        var chatMessage = new
         {
             id = $"m_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
             sender = isStaff ? "SALES" : "BUYER",
@@ -72,24 +73,36 @@ public class RfqNegotiationHub : Hub
             senderRole = isStaff ? "Chuyên viên Kinh doanh Quốc tế" : "Đại diện Thu mua (Buyer)",
             content = message,
             timestamp = DateTime.UtcNow.ToString("HH:mm")
-        });
+        };
+
+        SaveMessageToHistory(GetGroupName(rfqId), chatMessage);
+
+        await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveRfqMessage", payload);
+        await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveNegotiationMessage", chatMessage);
     }
 
-    public async Task SendNegotiationMessage(long rfqId, string content, object? counterOffer = null)
+    public async Task SendNegotiationMessage(long rfqId, string content, object? counterOffer = null, string? clientSender = null, string? clientSenderName = null)
     {
-        var senderName = Context.User?.Identity?.Name ?? "User";
-        var isStaff = Context.User?.IsInRole("Admin_Super") == true || Context.User?.IsInRole("Sales_Executive") == true;
+        var isStaff = Context.User?.IsInRole("Admin_Super") == true ||
+                      Context.User?.IsInRole("Sales_Executive") == true ||
+                      string.Equals(clientSender, "SALES", StringComparison.OrdinalIgnoreCase);
+
+        var senderName = !string.IsNullOrWhiteSpace(clientSenderName)
+            ? clientSenderName
+            : (Context.User?.Identity?.Name ?? (isStaff ? "Chuyên viên Kinh doanh Quốc tế" : "Đại diện Thu mua (Buyer)"));
 
         var chatMessage = new
         {
             id = $"m_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
             sender = isStaff ? "SALES" : "BUYER",
             senderName,
-            senderRole = isStaff ? "Chuyên viên Kinh doanh Quốc tế" : "Đại diện Thu mua (Buyer)",
+            senderRole = isStaff ? "Chuyên viên Kinh doanh Quốc tế - Quang Tấn Hoàng" : "Đại diện Thu mua (Buyer)",
             content,
             counterOffer,
             timestamp = DateTime.UtcNow.ToString("HH:mm")
         };
+
+        SaveMessageToHistory(GetGroupName(rfqId), chatMessage);
 
         await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveNegotiationMessage", chatMessage);
         await Clients.Group(GetGroupName(rfqId)).SendAsync("ReceiveRfqMessage", new
@@ -99,6 +112,16 @@ public class RfqNegotiationHub : Hub
             Message = content,
             Timestamp = DateTime.UtcNow
         });
+    }
+
+    private static void SaveMessageToHistory(string groupName, object message)
+    {
+        var list = _chatHistories.GetOrAdd(groupName, _ => new List<object>());
+        lock (list)
+        {
+            list.Add(message);
+            if (list.Count > 100) list.RemoveAt(0); // Giới hạn 100 tin nhắn gần nhất
+        }
     }
 
     private static string GetGroupName(long rfqId) => $"rfq_{rfqId}";

@@ -7,7 +7,7 @@ using WebXNK.Application.Interfaces;
 
 namespace WebXNK.Api.Controllers.V1.Admin;
 
-[Authorize(Roles = "Admin_Super,Sales_Executive")]
+[Authorize(Roles = "Admin_Super")]
 [Route("api/v1/admin/companies")]
 public class CompanyManagementController : BaseApiController
 {
@@ -32,8 +32,8 @@ public class CompanyManagementController : BaseApiController
     /// <summary>
     /// Phê duyệt (VERIFIED) hoặc Từ chối (REJECTED) hồ sơ doanh nghiệp B2B (Yêu cầu quyền Admin_Super)
     /// </summary>
-    [Authorize(Roles = "Admin_Super")]
     [HttpPut("{id:long}/verify")]
+    [HttpPost("{id:long}/verify")]
     [ProducesResponseType(typeof(ApiResponse<CompanyProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> VerifyCompany(long id, [FromBody] VerifyCompanyRequestDto request)

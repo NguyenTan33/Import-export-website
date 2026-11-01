@@ -6,24 +6,34 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { isValidEmail } from "@/utils/validation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loginAsDemo } = useAuth();
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    await login(email, password);
-    router.push("/");
-  };
-
-  const handleDemo = (type: "b2c" | "b2b" | "admin") => {
-    loginAsDemo(type);
-    router.push("/");
+    if (!isValidEmail(email)) {
+      setFormError("Email không đúng định dạng.");
+      return;
+    }
+    setFormError("");
+    setIsSubmitting(true);
+    const success = await login(email, password);
+    if (success) {
+      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+      router.push(returnTo?.startsWith("/") ? returnTo : "/");
+    }
+    else {
+      setFormError("Email hoặc mật khẩu không chính xác, hoặc API chưa sẵn sàng.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,47 +95,17 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {formError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 p-3">{formError}</p>}
+
           <button
             type="submit"
+            disabled={isSubmitting}
             className="w-full flex items-center justify-center gap-2 bg-[#0E4B94] hover:bg-[#0a376d] text-white py-2.5 text-xs font-bold font-mono uppercase tracking-wider transition-colors shadow-sm"
           >
-            <span>{t("auth.signInBtn")}</span>
+            <span>{isSubmitting ? "Đang xử lý..." : t("auth.signInBtn")}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Quick Demo Logins */}
-        <div className="pt-4 border-t border-neutral-200">
-          <span className="text-[10px] font-mono text-neutral-500 uppercase block mb-2 font-bold">
-            {t("auth.quickDemoLogin")}
-          </span>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              type="button"
-              onClick={() => handleDemo("b2b")}
-              className="p-2 border border-[#0E4B94] hover:bg-blue-50 bg-blue-50/50 text-xs font-mono font-bold text-[#0E4B94] rounded transition-colors text-left flex items-center justify-between"
-            >
-              <span>🏢 {t("auth.demoB2b")}</span>
-              <span className="text-[10px] bg-[#0E4B94] text-white px-2 py-0.5 rounded">1-Click</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemo("b2c")}
-              className="p-2 border border-neutral-300 hover:border-black bg-neutral-50 text-xs font-mono font-semibold text-neutral-800 rounded transition-colors text-left flex items-center justify-between"
-            >
-              <span>🛒 {t("auth.demoB2c")}</span>
-              <span className="text-[10px] bg-neutral-200 text-neutral-700 px-2 py-0.5 rounded">1-Click</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemo("admin")}
-              className="p-2 border border-neutral-800 bg-neutral-900 text-xs font-mono font-bold text-white rounded transition-colors text-left flex items-center justify-between"
-            >
-              <span>🛡️ {t("auth.demoAdmin")}</span>
-              <span className="text-[10px] bg-neutral-700 text-white px-2 py-0.5 rounded">1-Click</span>
-            </button>
-          </div>
-        </div>
 
         <div className="text-center pt-2 text-xs font-mono text-neutral-600">
           <Link href="/register" className="text-[#0E4B94] font-bold hover:underline">

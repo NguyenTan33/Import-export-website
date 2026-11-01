@@ -10,6 +10,7 @@ import {
   Box,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { MarineRouteMap } from "./MarineRouteMap";
 
 export interface ShipmentMilestone {
   stage: "FACTORY_READY" | "CUSTOMS_CLEARED" | "VESSEL_DEPARTED" | "ON_SEA" | "PORT_ARRIVED" | "DELIVERED";
@@ -172,6 +173,15 @@ export const VesselTrackingTimeline: React.FC<VesselTrackingTimelineProps> = ({ 
           </div>
         </div>
       </div>
+
+      {/* Interactive Marine AIS Route Map */}
+      <MarineRouteMap
+        blNumber={shipment.blNumber}
+        initialProgressPercent={shipment.routeProgressPercent}
+        carrierName={shipment.carrierName}
+        vesselName={shipment.vesselName}
+        voyageNumber={shipment.voyageNumber}
+      />
 
       {/* 6-Stage Milestone Timeline */}
       <div className="border border-neutral-300 bg-white p-6 shadow-sm">

@@ -274,6 +274,7 @@ public class StripeAndB2BPaymentService : IPaymentService
             Id = payment.Id,
             RfqId = payment.RfqId,
             RfqNumber = rfq.RfqNumber,
+            CompanyName = rfq.Company?.CompanyName ?? string.Empty,
             PaymentStage = payment.PaymentStage,
             PaymentMethod = payment.PaymentMethod,
             AmountUsd = payment.AmountUsd,
@@ -290,6 +291,7 @@ public class StripeAndB2BPaymentService : IPaymentService
     {
         var payment = await _context.B2BPayments
             .Include(p => p.RfqRequest)
+                .ThenInclude(r => r.Company)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId);
 
         if (payment == null)
@@ -316,6 +318,7 @@ public class StripeAndB2BPaymentService : IPaymentService
             Id = payment.Id,
             RfqId = payment.RfqId,
             RfqNumber = payment.RfqRequest?.RfqNumber ?? string.Empty,
+            CompanyName = payment.RfqRequest?.Company?.CompanyName ?? string.Empty,
             PaymentStage = payment.PaymentStage,
             PaymentMethod = payment.PaymentMethod,
             AmountUsd = payment.AmountUsd,
@@ -328,11 +331,13 @@ public class StripeAndB2BPaymentService : IPaymentService
         };
     }
 
-    public async Task<List<B2BPaymentResponseDto>> GetB2BPaymentsByRfqAsync(long rfqId)
+    public async Task<List<B2BPaymentResponseDto>> GetB2BPaymentsByRfqAsync(long userId, long rfqId)
     {
         var payments = await _context.B2BPayments
+            .AsNoTracking()
             .Include(p => p.RfqRequest)
-            .Where(p => p.RfqId == rfqId)
+                .ThenInclude(r => r.Company)
+            .Where(p => p.RfqId == rfqId && p.RfqRequest != null && p.RfqRequest.Company != null && p.RfqRequest.Company.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
@@ -341,6 +346,43 @@ public class StripeAndB2BPaymentService : IPaymentService
             Id = p.Id,
             RfqId = p.RfqId,
             RfqNumber = p.RfqRequest?.RfqNumber ?? string.Empty,
+            CompanyName = p.RfqRequest?.Company?.CompanyName ?? string.Empty,
+            PaymentStage = p.PaymentStage,
+            PaymentMethod = p.PaymentMethod,
+            AmountUsd = p.AmountUsd,
+            SwiftReference = p.SwiftReference,
+            BankSlipFileUrl = p.BankSlipFileUrl,
+            VerificationStatus = p.VerificationStatus,
+            VerifiedBy = p.VerifiedBy,
+            VerifiedAt = p.VerifiedAt,
+            CreatedAt = p.CreatedAt
+        }).ToList();
+    }
+
+    public async Task<List<B2BPaymentResponseDto>> GetAllB2BPaymentsAsync(string? status = null)
+    {
+        var query = _context.B2BPayments
+            .AsNoTracking()
+            .Include(p => p.RfqRequest)
+                .ThenInclude(r => r.Company)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalized = status.Trim().ToUpperInvariant();
+            query = query.Where(p => p.VerificationStatus == normalized);
+        }
+
+        var payments = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        return payments.Select(p => new B2BPaymentResponseDto
+        {
+            Id = p.Id,
+            RfqId = p.RfqId,
+            RfqNumber = p.RfqRequest?.RfqNumber ?? string.Empty,
+            CompanyName = p.RfqRequest?.Company?.CompanyName ?? string.Empty,
             PaymentStage = p.PaymentStage,
             PaymentMethod = p.PaymentMethod,
             AmountUsd = p.AmountUsd,

@@ -1,17 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
-import { 
-  Building, 
-  CheckCircle2, 
-  XCircle, 
-  Globe, 
-  DollarSign, 
-  ShieldCheck, 
-  Clock
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Building,
+  CheckCircle2,
+  XCircle,
+  Globe,
+  DollarSign,
+  ShieldCheck,
+  Clock,
+  FileText,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { adminApi, paymentsApi } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
 
 interface PendingCompany {
   id: number;
@@ -31,91 +34,99 @@ interface PendingBankSlip {
   id: number;
   rfqId: string;
   companyName: string;
+  paymentStage?: string;
+  paymentMethod?: string;
   amountUsd: number;
   bankReference: string;
   swiftCode: string;
+  bankSlipFileUrl?: string;
   submittedDate: string;
   status: "PENDING_VERIFY" | "VERIFIED" | "REJECTED";
 }
-
-const INITIAL_COMPANIES: PendingCompany[] = [
-  {
-    id: 101,
-    companyName: "Tokyo Overseas Logistics Co., Ltd",
-    taxId: "JP-9010401012345",
-    country: "Japan",
-    website: "www.tokyotrading.co.jp",
-    address: "2-3-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan",
-    repName: "Kenji Sato",
-    email: "sato@tokyotrading.co.jp",
-    phone: "+81 3 1234 5678",
-    registeredDate: "2026-09-24",
-    isVerified: true,
-  },
-  {
-    id: 102,
-    companyName: "Hamburg EuroPort Import GmbH",
-    taxId: "DE-312984719",
-    country: "Germany",
-    website: "www.europort-hamburg.de",
-    address: "Am Sandtorkai 48, 20457 Hamburg, Germany",
-    repName: "Hans Müller",
-    email: "muller.h@europort.de",
-    phone: "+49 40 8829 100",
-    registeredDate: "2026-09-29",
-    isVerified: false,
-  },
-  {
-    id: 103,
-    companyName: "California Harvest Foods Inc",
-    taxId: "US-94-3281902",
-    country: "United States",
-    website: "www.calharvest.com",
-    address: "1000 Harbor Blvd, Long Beach, CA 90802, USA",
-    repName: "Sarah Jenkins",
-    email: "procurement@calharvest.com",
-    phone: "+1 562 555 0192",
-    registeredDate: "2026-09-30",
-    isVerified: false,
-  },
-];
-
-const INITIAL_BANK_SLIPS: PendingBankSlip[] = [
-  {
-    id: 501,
-    rfqId: "RFQ-2026-QTH-001",
-    companyName: "Tokyo Overseas Logistics Co., Ltd",
-    amountUsd: 25350, // 30% of $84,500
-    bankReference: "SWIFT-MT103-MUFG-2026-8812",
-    swiftCode: "BOTKJPJT",
-    submittedDate: "2026-09-27",
-    status: "PENDING_VERIFY",
-  },
-  {
-    id: 502,
-    rfqId: "RFQ-2026-QTH-002",
-    companyName: "California Harvest Foods Inc",
-    amountUsd: 73800, // 30% of $246,000
-    bankReference: "FEDWIRE-BOA-2026-09941",
-    swiftCode: "BOFAUS3N",
-    submittedDate: "2026-09-28",
-    status: "PENDING_VERIFY",
-  },
-];
 
 export const PartnerVerificationPanel: React.FC = () => {
   const { language } = useLanguage();
   const { formatPrice } = useCurrency();
   const isVi = language === "vi";
 
-  const [companies, setCompanies] = useState<PendingCompany[]>(INITIAL_COMPANIES);
-  const [bankSlips, setBankSlips] = useState<PendingBankSlip[]>(INITIAL_BANK_SLIPS);
-  const [notification, setNotification] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<PendingCompany[]>([]);
+  const [companyPage, setCompanyPage] = useState<number>(1);
+  const [companyPageSize, setCompanyPageSize] = useState<number>(6);
 
-  const handleVerifyCompany = (id: number, approve: boolean) => {
-    setCompanies((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, isVerified: approve } : c))
-    );
+  const [bankSlips, setBankSlips] = useState<PendingBankSlip[]>([]);
+  const [slipPage, setSlipPage] = useState<number>(1);
+  const [slipPageSize, setSlipPageSize] = useState<number>(10);
+
+  const [notification, setNotification] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    adminApi
+      .getPendingCompanies()
+      .then((apiCompanies) => {
+        {
+          const mapped: PendingCompany[] = apiCompanies.map((c) => ({
+            id: c.id,
+            companyName: c.companyName,
+            taxId: c.taxId || c.taxIdentificationNumber || "",
+            country: c.countryCode,
+            website: c.website || "",
+            address: c.businessAddress || "",
+            repName: c.representativeName || "",
+            email: c.contactEmail || "",
+            phone: c.contactPhone || "",
+            registeredDate: c.createdAt ? new Date(c.createdAt).toISOString().slice(0, 10) : "",
+            isVerified: c.isVerified ?? c.verificationStatus === "VERIFIED",
+          }));
+          setCompanies(mapped);
+        }
+      })
+      .catch(() => setLoadError(isVi ? "Không tải được hồ sơ doanh nghiệp." : "Could not load company applications."));
+
+    paymentsApi
+      .getAllB2BPayments()
+      .then((apiSlips) => {
+        {
+          const mapped: PendingBankSlip[] = apiSlips.map((s) => {
+            const rawStatus = s.verificationStatus || s.status;
+            const rawDate = s.submittedAt || s.createdAt;
+            return {
+              id: s.id,
+              rfqId: s.rfqNumber,
+              companyName: s.companyName || "",
+              paymentStage: s.paymentStage,
+              paymentMethod: s.paymentMethod,
+              amountUsd: s.amountUsd,
+              bankReference: s.swiftReference,
+              swiftCode: s.paymentMethod,
+              bankSlipFileUrl: s.bankSlipFileUrl,
+              submittedDate: rawDate
+                ? new Date(rawDate).toISOString().slice(0, 10)
+                : "",
+              status:
+                rawStatus === "VERIFIED"
+                  ? "VERIFIED"
+                  : rawStatus === "REJECTED"
+                  ? "REJECTED"
+                  : "PENDING_VERIFY",
+            };
+          });
+          setBankSlips(mapped);
+        }
+      })
+      .catch(() => setLoadError(isVi ? "Không tải được chứng từ thanh toán." : "Could not load payment slips."));
+  }, [isVi]);
+
+  const handleVerifyCompany = async (id: number, approve: boolean) => {
+    try {
+      await adminApi.verifyCompany(id, approve);
+      setCompanies((prev) => prev.map((c) => (c.id === id ? { ...c, isVerified: approve } : c)));
+      setLoadError(null);
+    } catch {
+      setLoadError(isVi ? "Không thể cập nhật trạng thái doanh nghiệp." : "Could not update company status.");
+      return;
+    }
+
     const company = companies.find((c) => c.id === id);
     setNotification(
       isVi
@@ -129,25 +140,52 @@ export const PartnerVerificationPanel: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const handleVerifyBankSlip = (id: number, approve: boolean) => {
-    setBankSlips((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: approve ? "VERIFIED" : "REJECTED" } : s))
-    );
+  const handleVerifyBankSlip = async (id: number, approve: boolean) => {
+    try {
+      await paymentsApi.verifyBankSlip(
+        id,
+        approve,
+        approve
+          ? "Verified by Finance Department against SWIFT MT103 statement"
+          : "Rejected by Finance Department"
+      );
+      setBankSlips((prev) => prev.map((s) => (s.id === id ? { ...s, status: approve ? "VERIFIED" : "REJECTED" } : s)));
+      setLoadError(null);
+    } catch {
+      setLoadError(isVi ? "Không thể cập nhật chứng từ thanh toán." : "Could not update payment slip.");
+      return;
+    }
+
     const slip = bankSlips.find((s) => s.id === id);
     setNotification(
       isVi
         ? approve
-          ? `Đã xác nhận đặt cọc 30% cho đơn ${slip?.rfqId}. Đơn hàng đã chuyển sang trạng thái: ĐANG SẢN XUẤT (IN_PRODUCTION).`
+          ? `Đã xác nhận thanh toán cho đơn ${slip?.rfqId}. Đơn hàng đã chuyển sang trạng thái: ĐANG SẢN XUẤT (IN_PRODUCTION).`
           : `Đã từ chối ủy nhiệm chi cho đơn ${slip?.rfqId}.`
         : approve
-          ? `Confirmed 30% deposit for ${slip?.rfqId}. RFQ status advanced to: IN_PRODUCTION.`
+          ? `Confirmed wire transfer for ${slip?.rfqId}. RFQ status advanced to: IN_PRODUCTION.`
           : `Rejected bank slip for ${slip?.rfqId}.`
     );
     setTimeout(() => setNotification(null), 5000);
   };
 
+  const paginatedCompanies = useMemo(() => {
+    return companies.slice(
+      (companyPage - 1) * companyPageSize,
+      companyPage * companyPageSize
+    );
+  }, [companies, companyPage, companyPageSize]);
+
+  const paginatedBankSlips = useMemo(() => {
+    return bankSlips.slice(
+      (slipPage - 1) * slipPageSize,
+      slipPage * slipPageSize
+    );
+  }, [bankSlips, slipPage, slipPageSize]);
+
   return (
     <div className="space-y-8">
+      {loadError && <div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</div>}
       {/* Alert banner */}
       {notification && (
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-sm flex items-center gap-2 font-medium">
@@ -165,7 +203,7 @@ export const PartnerVerificationPanel: React.FC = () => {
               {isVi ? "1. Phê Duyệt Hồ Sơ Pháp Nhân Doanh Nghiệp B2B (EXP-14, EXP-15)" : "1. B2B Corporate Verification Suite"}
             </h2>
             <p className="text-xs text-slate-500">
-              {isVi 
+              {isVi
                 ? "Thẩm định giấy phép kinh doanh, mã số thuế và mở khóa hạn mức giá sỉ container cho đối tác quốc tế."
                 : "Verify business registration, Tax ID, and unlock wholesale container tier pricing for overseas buyers."}
             </p>
@@ -176,9 +214,9 @@ export const PartnerVerificationPanel: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {companies.map((comp) => (
-            <div 
-              key={comp.id}
+          {paginatedCompanies.map((comp, index) => (
+            <div
+              key={comp.id ?? comp.companyName ?? `company-${index}`}
               className={`bg-white rounded-xl p-5 border shadow-sm space-y-3 transition-all ${
                 comp.isVerified ? "border-emerald-200 bg-emerald-50/20" : "border-slate-200 hover:border-blue-300"
               }`}
@@ -217,7 +255,7 @@ export const PartnerVerificationPanel: React.FC = () => {
                 <div className="flex justify-between">
                   <dt className="text-slate-400">Website:</dt>
                   <dd className="text-blue-600 hover:underline">
-                    <a href={`https://${comp.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1">
+                    <a href={`https://${comp.website.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1">
                       <Globe className="w-3 h-3" />
                       {comp.website}
                     </a>
@@ -251,6 +289,24 @@ export const PartnerVerificationPanel: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {companies.length > 0 && (
+          <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <Pagination
+              currentPage={companyPage}
+              totalItems={companies.length}
+              pageSize={companyPageSize}
+              onPageChange={setCompanyPage}
+              onPageSizeChange={(newSize) => {
+                setCompanyPageSize(newSize);
+                setCompanyPage(1);
+              }}
+              pageSizeOptions={[6, 12, 24]}
+              isVi={isVi}
+              itemLabel={isVi ? "doanh nghiệp" : "companies"}
+            />
+          </div>
+        )}
       </div>
 
       {/* SECTION 2: THẨM ĐỊNH ỦY NHIỆM CHI T/T ĐẶT CỌC 30% */}
@@ -259,10 +315,10 @@ export const PartnerVerificationPanel: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-600" />
-              {isVi ? "2. Thẩm Định Ủy Nhiệm Chi Chuyển Tiền T/T Đặt Cọc 30% (EXP-60 đến EXP-63)" : "2. T/T Wire Transfer Deposit Verification"}
+              {isVi ? "2. Thẩm Định Ủy Nhiệm Chi Chuyển Tiền T/T & L/C (EXP-60 đến EXP-63)" : "2. T/T & L/C Wire Transfer Verification"}
             </h2>
             <p className="text-xs text-slate-500">
-              {isVi 
+              {isVi
                 ? "Kế toán kiểm tra giao dịch điện tín SWIFT MT103 / Bank Slip từ tài khoản quốc tế trước khi đưa lệnh sản xuất vào nhà máy."
                 : "Finance team reconciles incoming SWIFT MT103 wire deposits before pushing batch order to factory floor."}
             </p>
@@ -277,26 +333,44 @@ export const PartnerVerificationPanel: React.FC = () => {
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
               <tr>
                 <th className="py-3.5 px-4">{isVi ? "Mã RFQ / Đối Tác" : "RFQ / Partner"}</th>
-                <th className="py-3.5 px-4">{isVi ? "Số Tiền Đặt Cọc (30%)" : "Deposit Amount (30%)"}</th>
-                <th className="py-3.5 px-4">{isVi ? "Mã Giao Dịch SWIFT / Bank Ref" : "SWIFT Ref / Wire Code"}</th>
+                <th className="py-3.5 px-4">{isVi ? "Số Tiền Chuyển" : "Wire Amount"}</th>
+                <th className="py-3.5 px-4">{isVi ? "Mã Giao Dịch SWIFT / Chứng từ" : "SWIFT Ref / Slip"}</th>
                 <th className="py-3.5 px-4">{isVi ? "Ngày Nộp" : "Submitted Date"}</th>
                 <th className="py-3.5 px-4">{isVi ? "Trạng Thái" : "Status"}</th>
                 <th className="py-3.5 px-4 text-right">{isVi ? "Thao Tác" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {bankSlips.map((slip) => (
-                <tr key={slip.id} className="hover:bg-slate-50/80 transition-colors">
+              {paginatedBankSlips.map((slip, index) => (
+                <tr key={slip.id ?? `${slip.rfqId}-${index}`} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <span className="font-mono font-bold text-[#0E4B94] block">{slip.rfqId}</span>
                     <span className="text-slate-800 font-medium">{slip.companyName}</span>
                   </td>
                   <td className="py-3.5 px-4 font-mono font-bold text-emerald-700 text-sm">
                     {formatPrice(slip.amountUsd)}
+                    {slip.paymentStage && (
+                      <span className="block text-[10px] font-normal text-slate-500">
+                        {slip.paymentStage === "DEPOSIT_30"
+                          ? isVi
+                            ? "Đặt cọc 30%"
+                            : "30% Deposit"
+                          : isVi
+                          ? "Tất toán 70%"
+                          : "70% Balance"}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3.5 px-4">
                     <span className="font-mono font-semibold text-slate-900 block">{slip.bankReference}</span>
-                    <span className="text-[10px] text-slate-400">SWIFT: {slip.swiftCode}</span>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <span>SWIFT: {slip.swiftCode}</span>
+                      {slip.bankSlipFileUrl && (
+                        <span className="inline-flex items-center gap-0.5 text-blue-600 font-semibold">
+                          <FileText className="w-3 h-3" /> PDF
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3.5 px-4 text-slate-600 font-medium">
                     {slip.submittedDate}
@@ -347,6 +421,22 @@ export const PartnerVerificationPanel: React.FC = () => {
               ))}
             </tbody>
           </table>
+
+          {bankSlips.length > 0 && (
+            <Pagination
+              currentPage={slipPage}
+              totalItems={bankSlips.length}
+              pageSize={slipPageSize}
+              onPageChange={setSlipPage}
+              onPageSizeChange={(newSize) => {
+                setSlipPageSize(newSize);
+                setSlipPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20]}
+              isVi={isVi}
+              itemLabel={isVi ? "chứng từ" : "wire slips"}
+            />
+          )}
         </div>
       </div>
     </div>

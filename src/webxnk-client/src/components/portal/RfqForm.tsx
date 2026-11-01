@@ -4,20 +4,39 @@ import React, { useState } from "react";
 import { Product, RfqRequestDto, RfqItemDto } from "@/types";
 import { Send, Plus, Trash2, Shield, Calendar, MapPin } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { getTranslation } from "@/lib/utils";
+import Link from "next/link";
 
 interface RfqFormProps {
-  availableProducts: Product[];
+  availableProducts?: Product[];
   onSubmitRfq: (rfq: RfqRequestDto) => Promise<void>;
   isSubmitting?: boolean;
+  canSubmit?: boolean;
+  submissionPrompt?: string;
+  authHref?: string;
+  initialProductId?: number;
+  initialQuantity?: number;
 }
+
+const EMPTY_PRODUCTS: Product[] = [];
 
 export const RfqForm: React.FC<RfqFormProps> = ({
   availableProducts,
   onSubmitRfq,
   isSubmitting = false,
+  canSubmit = true,
+  submissionPrompt,
+  authHref = "/login?returnTo=%2Fportal",
+  initialProductId,
+  initialQuantity,
 }) => {
   const { language } = useLanguage();
   const isVi = language === "vi";
+  const products = Array.isArray(availableProducts) ? availableProducts : EMPTY_PRODUCTS;
+
+  const defaultProd =
+    products.find((p) => p.id === initialProductId) ||
+    products[0];
 
   const [incoterm, setIncoterm] = useState<"FOB" | "CIF" | "CFR" | "EXW" | "DDP">("FOB");
   const [portOfLoading, setPortOfLoading] = useState(
@@ -29,26 +48,36 @@ export const RfqForm: React.FC<RfqFormProps> = ({
   const [targetDate, setTargetDate] = useState("2026-11-15");
   const [items, setItems] = useState<RfqItemDto[]>([
     {
-      productId: availableProducts[0]?.id || 1,
+      productId: defaultProd?.id || 1,
       productName:
-        availableProducts[0]?.translations?.find((tr) => tr.languageCode === language)?.name ||
-        availableProducts[0]?.name ||
-        (availableProducts[0]?.translations && availableProducts[0]?.translations[0]?.name) ||
+        getTranslation(defaultProd?.translations, language)?.name ||
         "Giày thể thao Sneaker xuất khẩu",
-      quantity: 1200,
-      targetPriceUsd: 19.5,
+      quantity: initialQuantity && initialQuantity >= 10 ? initialQuantity : 1200,
+      targetPriceUsd: defaultProd ? Number((defaultProd.defaultRetailPriceUsd * 0.8).toFixed(2)) : 19.5,
       customRequirements: isVi ? "Đóng gói thùng 5 lớp chống ẩm silica gel" : "5-ply export carton with silica gel desiccant",
     },
   ]);
 
+  React.useEffect(() => {
+    if (!initialProductId) return;
+    const prod = products.find((p) => p.id === initialProductId);
+    if (!prod) return;
+    const pName = getTranslation(prod?.translations, language)?.name || prod.baseSku;
+    setItems([
+      {
+        productId: prod.id,
+        productName: pName,
+        quantity: initialQuantity && initialQuantity >= 10 ? initialQuantity : 500,
+        targetPriceUsd: Number((prod.defaultRetailPriceUsd * 0.8).toFixed(2)),
+        customRequirements: isVi ? "Đóng gói thùng 5 lớp chống ẩm silica gel" : "5-ply export carton with silica gel desiccant",
+      },
+    ]);
+  }, [initialProductId, initialQuantity, products, language, isVi]);
+
   const handleAddItem = () => {
-    if (availableProducts.length > 0) {
-      const prod = availableProducts[0];
-      const prodName =
-        prod.translations?.find((tr) => tr.languageCode === language)?.name ||
-        prod.name ||
-        (prod.translations && prod.translations[0]?.name) ||
-        prod.baseSku;
+    if (products.length > 0) {
+      const prod = products[0];
+      const prodName = getTranslation(prod?.translations, language)?.name || prod.baseSku;
 
       setItems([
         ...items,
@@ -70,13 +99,8 @@ export const RfqForm: React.FC<RfqFormProps> = ({
   const handleItemChange = (index: number, field: keyof RfqItemDto, value: string | number) => {
     const updated = [...items];
     if (field === "productId") {
-      const prod = availableProducts.find((p) => p.id === Number(value));
-      const pName =
-        prod?.translations?.find((tr) => tr.languageCode === language)?.name ||
-        prod?.name ||
-        (prod?.translations && prod?.translations[0]?.name) ||
-        prod?.baseSku ||
-        `Product #${value}`;
+      const prod = products.find((p) => p.id === Number(value));
+      const pName = getTranslation(prod?.translations, language)?.name || prod?.baseSku;
 
       updated[index] = {
         ...updated[index],
@@ -99,6 +123,7 @@ export const RfqForm: React.FC<RfqFormProps> = ({
       targetDeliveryDate: targetDate,
       items,
     };
+    if (!canSubmit) return;
     await onSubmitRfq(rfqPayload);
   };
 
@@ -209,14 +234,12 @@ export const RfqForm: React.FC<RfqFormProps> = ({
                 onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
                 className="w-full border border-black/40 bg-white p-2 text-xs focus:outline-none rounded"
               >
-                {availableProducts.map((p) => {
+                {products.map((p, index) => {
                   const pName =
-                    p.translations?.find((tr) => tr.languageCode === language)?.name ||
-                    p.name ||
-                    (p.translations && p.translations[0]?.name) ||
+                    getTranslation(p?.translations, language)?.name ||
                     p.baseSku;
                   return (
-                    <option key={p.id} value={p.id}>
+                    <option key={p.id ?? p.baseSku ?? `product-${index}`} value={p.id ?? ""}>
                       [{p.hsCode}] {pName}
                     </option>
                   );
@@ -286,7 +309,7 @@ export const RfqForm: React.FC<RfqFormProps> = ({
       <div className="border-t border-black pt-4 flex justify-end">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canSubmit}
           className="flex items-center gap-2 bg-[#0E4B94] hover:bg-[#0a376d] px-8 py-3 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50 transition-colors rounded shadow-sm"
         >
           <Send className="w-4 h-4" />
@@ -297,6 +320,14 @@ export const RfqForm: React.FC<RfqFormProps> = ({
           </span>
         </button>
       </div>
+      {!canSubmit && (
+        <p className="border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          {submissionPrompt || (isVi ? "Vui lòng đăng nhập để gửi yêu cầu báo giá." : "Please sign in to submit an RFQ.")}{" "}
+          <Link href={authHref} className="font-bold underline">
+            {authHref.startsWith("/register") ? (isVi ? "Đăng ký B2B" : "Register for B2B") : (isVi ? "Đăng nhập" : "Sign in")}
+          </Link>
+        </p>
+      )}
     </form>
   );
 };

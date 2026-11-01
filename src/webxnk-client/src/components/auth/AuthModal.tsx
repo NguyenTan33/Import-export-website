@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Lock,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { isValidEmail, validateRegistration } from "@/utils/validation";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,42 +28,84 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   defaultTab = "signin",
 }) => {
   const [tab, setTab] = useState<"signin" | "register_b2c" | "register_b2b">(defaultTab);
-  const { login, loginAsDemo, registerB2c, registerB2b } = useAuth();
+  const { login, registerB2c, registerB2b } = useAuth();
   const { t } = useLanguage();
 
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
 
   // B2B specific states
   const [companyName, setCompanyName] = useState("");
   const [taxId, setTaxId] = useState("");
-  const [country, setCountry] = useState("Japan");
+  const [country, setCountry] = useState("JPN");
   const [companyAddress, setCompanyAddress] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTab(defaultTab);
+    setFormError("");
+    setIsSubmitting(false);
+  }, [isOpen, defaultTab]);
+
+  const switchTab = (nextTab: "signin" | "register_b2c" | "register_b2b") => {
+    setTab(nextTab);
+    setFormError("");
+    setIsSubmitting(false);
+  };
 
   if (!isOpen) return null;
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    await login(email, password);
-    onClose();
+    setFormError("");
+    if (!isValidEmail(email)) return setFormError("Email không đúng định dạng.");
+    setIsSubmitting(true);
+    try {
+      const success = await login(email, password);
+      if (success) onClose();
+      else setFormError("Email hoặc mật khẩu không chính xác, hoặc API chưa sẵn sàng.");
+    } catch {
+      setFormError("Không thể đăng nhập lúc này. Vui lòng thử lại.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRegisterB2c = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !fullName) return;
-    await registerB2c({ fullName, email, phone, password });
-    onClose();
+    setFormError("");
+    const validationError = validateRegistration({ fullName, email, phone, password, confirmPassword });
+    if (validationError) return setFormError(validationError);
+    setIsSubmitting(true);
+    try {
+      const success = await registerB2c({ fullName, email, phone, password, confirmPassword });
+      if (success) onClose();
+      else setFormError("Đăng ký thất bại. Email có thể đã được sử dụng hoặc API chưa sẵn sàng.");
+    } catch {
+      setFormError("Không thể đăng ký lúc này. Vui lòng thử lại.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRegisterB2b = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !taxId || !email) return;
-    await registerB2b({
+    setFormError("");
+    const validationError = validateRegistration({ fullName, email, phone, password, confirmPassword });
+    if (validationError) return setFormError(validationError);
+    if (!companyName || !taxId || !/^[A-Za-z]{3}$/.test(country)) {
+      return setFormError("Vui lòng nhập tên công ty, mã số thuế và mã quốc gia ISO gồm 3 chữ cái.");
+    }
+    setIsSubmitting(true);
+    try {
+      const success = await registerB2b({
       companyName,
       taxId,
       country,
@@ -72,13 +115,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email,
       phone,
       password,
-    });
-    onClose();
-  };
-
-  const handleDemoClick = (type: "b2c" | "b2b" | "admin") => {
-    loginAsDemo(type);
-    onClose();
+      confirmPassword,
+      });
+      if (success) onClose();
+      else setFormError("Đăng ký thất bại. Email hoặc mã số thuế có thể đã tồn tại, hoặc API chưa sẵn sàng.");
+    } catch {
+      setFormError("Không thể đăng ký lúc này. Vui lòng thử lại.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,7 +160,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="flex border-b border-neutral-200 bg-neutral-50 text-xs font-mono">
           <button
             type="button"
-            onClick={() => setTab("signin")}
+            onClick={() => switchTab("signin")}
             className={`flex-1 py-3 text-center font-bold uppercase transition-colors border-b-2 ${
               tab === "signin"
                 ? "border-[#0E4B94] bg-white text-[#0E4B94]"
@@ -126,7 +171,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setTab("register_b2c")}
+            onClick={() => switchTab("register_b2c")}
             className={`flex-1 py-3 text-center font-bold uppercase transition-colors border-b-2 ${
               tab === "register_b2c"
                 ? "border-[#0E4B94] bg-white text-[#0E4B94]"
@@ -137,7 +182,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setTab("register_b2b")}
+            onClick={() => switchTab("register_b2b")}
             className={`flex-1 py-3 text-center font-bold uppercase transition-colors border-b-2 ${
               tab === "register_b2b"
                 ? "border-[#0E4B94] bg-white text-[#0E4B94]"
@@ -187,43 +232,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
+              {formError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 p-3">{formError}</p>}
+
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-2 bg-[#0E4B94] hover:bg-[#0a376d] text-white py-2.5 text-xs font-bold font-mono uppercase tracking-wider transition-colors shadow-sm"
               >
-                <span>{t("auth.signInBtn")}</span>
+                <span>{isSubmitting ? "Đang xử lý..." : t("auth.signInBtn")}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              {/* 1-Click Fast Demo Logins */}
-              <div className="pt-3 border-t border-neutral-200">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase block mb-2 font-bold">
-                  {t("auth.quickDemoLogin")}
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDemoClick("b2c")}
-                    className="p-2 border border-neutral-300 hover:border-black bg-neutral-50 text-[11px] font-mono font-semibold text-neutral-800 rounded transition-colors text-center"
-                  >
-                    🛒 {t("auth.demoB2c")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoClick("b2b")}
-                    className="p-2 border border-[#0E4B94] hover:bg-blue-50 bg-blue-50/50 text-[11px] font-mono font-bold text-[#0E4B94] rounded transition-colors text-center"
-                  >
-                    🏢 {t("auth.demoB2b")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoClick("admin")}
-                    className="p-2 border border-neutral-800 bg-neutral-900 text-[11px] font-mono font-bold text-white rounded transition-colors text-center"
-                  >
-                    🛡️ {t("auth.demoAdmin")}
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 
@@ -272,9 +291,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Phone className="w-4 h-4 absolute left-3 top-2.5 text-neutral-400" />
                   <input
                     type="tel"
+                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+84 901 234 567"
+                    maxLength={10}
+                    placeholder="0912345678"
                     className="w-full border border-neutral-300 pl-10 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                   />
                 </div>
@@ -297,11 +318,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-mono font-bold text-neutral-700 mb-1">Nhập lại mật khẩu *</label>
+                <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono" />
+              </div>
+              {formError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 p-3">{formError}</p>}
+
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-2 bg-black hover:bg-neutral-800 text-white py-2.5 text-xs font-bold font-mono uppercase tracking-wider transition-colors shadow-sm"
               >
-                <span>{t("auth.registerBtn")}</span>
+                <span>{isSubmitting ? "Đang xử lý..." : t("auth.registerBtn")}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -357,8 +385,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    placeholder="Japan / USA / Germany"
-                    className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
+                    maxLength={3}
+                    placeholder="JPN / USA / DEU"
+                    className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:border-black"
                   />
                 </div>
               </div>
@@ -412,9 +441,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </label>
                   <input
                     type="tel"
+                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+81 3 5555 0192"
+                    maxLength={10}
+                    placeholder="0912345678"
                     className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                   />
                 </div>
@@ -444,16 +475,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                   />
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-mono font-bold text-neutral-700 mb-1">Nhập lại mật khẩu *</label>
+                <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono" />
+              </div>
+              {formError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 p-3">{formError}</p>}
+
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-2 bg-[#0E4B94] hover:bg-[#0a376d] text-white py-2.5 text-xs font-bold font-mono uppercase tracking-wider transition-colors shadow-sm"
               >
-                <span>Đăng Ký & Mở Khóa Giá Sỉ B2B</span>
+                <span>{isSubmitting ? "Đang xử lý..." : "Đăng Ký & Mở Khóa Giá Sỉ B2B"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

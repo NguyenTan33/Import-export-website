@@ -7,6 +7,14 @@ public static class RfqMappingExtensions
 {
     public static RfqDetailDto ToDetailDto(this RfqRequest rfq)
     {
+        var computedItemsSubtotal = rfq.RfqItems?.Sum(ri =>
+            (ri.QuotedUnitPriceUsd ?? ri.TargetPriceUsd ?? (ri.Product?.DefaultRetailPriceUsd ?? 0)) * ri.Quantity
+        ) ?? 0;
+
+        var effectiveTotal = rfq.TotalQuotedAmountUsd > 0
+            ? rfq.TotalQuotedAmountUsd
+            : computedItemsSubtotal + rfq.OceanFreightCostUsd + rfq.MarineInsuranceCostUsd;
+
         return new RfqDetailDto
         {
             Id = rfq.Id,
@@ -24,10 +32,10 @@ public static class RfqMappingExtensions
             SuggestedContainerType = rfq.SuggestedContainerType,
             OceanFreightCostUsd = rfq.OceanFreightCostUsd,
             MarineInsuranceCostUsd = rfq.MarineInsuranceCostUsd,
-            TotalQuotedAmountUsd = rfq.TotalQuotedAmountUsd,
+            TotalQuotedAmountUsd = effectiveTotal,
             CreatedAt = rfq.CreatedAt,
             UpdatedAt = rfq.UpdatedAt,
-            Items = rfq.RfqItems.Select(ri => new RfqItemDetailDto
+            Items = (rfq.RfqItems ?? Enumerable.Empty<RfqItem>()).Select(ri => new RfqItemDetailDto
             {
                 Id = ri.Id,
                 ProductId = ri.ProductId,
@@ -36,7 +44,7 @@ public static class RfqMappingExtensions
                 ProductSku = ri.Product?.BaseSku ?? string.Empty,
                 Quantity = ri.Quantity,
                 TargetPriceUsd = ri.TargetPriceUsd,
-                QuotedUnitPriceUsd = ri.QuotedUnitPriceUsd,
+                QuotedUnitPriceUsd = ri.QuotedUnitPriceUsd ?? ri.TargetPriceUsd ?? ri.Product?.DefaultRetailPriceUsd,
                 CalculatedCbm = ri.CalculatedCbm,
                 CustomRequirements = ri.CustomRequirements
             }).ToList(),
@@ -54,6 +62,14 @@ public static class RfqMappingExtensions
 
     public static RfqSummaryDto ToSummaryDto(this RfqRequest rfq)
     {
+        var computedItemsSubtotal = rfq.RfqItems?.Sum(ri =>
+            (ri.QuotedUnitPriceUsd ?? ri.TargetPriceUsd ?? (ri.Product?.DefaultRetailPriceUsd ?? 0)) * ri.Quantity
+        ) ?? 0;
+
+        var effectiveTotal = rfq.TotalQuotedAmountUsd > 0
+            ? rfq.TotalQuotedAmountUsd
+            : computedItemsSubtotal + rfq.OceanFreightCostUsd + rfq.MarineInsuranceCostUsd;
+
         return new RfqSummaryDto
         {
             Id = rfq.Id,
@@ -64,7 +80,7 @@ public static class RfqMappingExtensions
             PortOfDischarge = rfq.PortOfDischarge,
             Status = rfq.Status,
             TotalCbm = rfq.TotalCbm,
-            TotalQuotedAmountUsd = rfq.TotalQuotedAmountUsd,
+            TotalQuotedAmountUsd = effectiveTotal,
             CreatedAt = rfq.CreatedAt
         };
     }

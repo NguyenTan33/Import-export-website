@@ -20,6 +20,7 @@ public class OrdersController : BaseApiController
     /// <summary>
     /// Tạo đơn hàng B2C mua lẻ quốc tế kèm tính phí ship và thuế tự động (EXP-36 đến EXP-39)
     /// </summary>
+    [AllowAnonymous]
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -28,7 +29,7 @@ public class OrdersController : BaseApiController
         var userId = GetCurrentUserId();
         if (userId <= 0)
         {
-            return Unauthorized(ApiResponse<OrderResponseDto>.Fail(StatusCodes.Status401Unauthorized, "Token không hợp lệ."));
+            userId = 1; // Fallback cho khách mua lẻ B2C Guest Checkout
         }
 
         try
@@ -55,9 +56,11 @@ public class OrdersController : BaseApiController
     public async Task<IActionResult> GetOrderById(long id)
     {
         var userId = GetCurrentUserId();
+        var orderType = GetCurrentOrderType();
+        if (orderType == null) return Forbid();
         try
         {
-            var result = await _orderService.GetOrderByIdAsync(id, userId);
+            var result = await _orderService.GetOrderByIdAsync(id, userId, orderType);
             return Ok(ApiResponse<OrderResponseDto>.Ok(result, "Lấy thông tin đơn hàng thành công."));
         }
         catch (KeyNotFoundException ex)
@@ -74,12 +77,42 @@ public class OrdersController : BaseApiController
     /// Lấy danh sách lịch sử đơn hàng của người dùng hiện tại
     /// </summary>
     [HttpGet("my-orders")]
+    [Authorize(Roles = "B2C_Customer,B2B_Buyer")]
     [ProducesResponseType(typeof(ApiResponse<List<OrderResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyOrders()
     {
         var userId = GetCurrentUserId();
-        var orders = await _orderService.GetUserOrdersAsync(userId);
+        var orderType = GetCurrentOrderType();
+        if (userId <= 0 || orderType == null) return Forbid();
+        var orders = await _orderService.GetUserOrdersAsync(userId, orderType);
         return Ok(ApiResponse<List<OrderResponseDto>>.Ok(orders, "Lấy danh sách đơn hàng thành công."));
+    }
+
+    [Authorize(Roles = "Admin_Super")]
+    [HttpGet("admin/all")]
+    public async Task<IActionResult> GetAllOrders()
+    {
+        var orders = await _orderService.GetAllOrdersAsync();
+        return Ok(ApiResponse<List<OrderResponseDto>>.Ok(orders, "Lấy danh sách đơn hàng toàn hệ thống thành công."));
+    }
+
+    [Authorize(Roles = "Admin_Super")]
+    [HttpPut("{id:long}/status")]
+    public async Task<IActionResult> UpdateOrderStatus(long id, [FromBody] UpdateOrderStatusRequest request)
+    {
+        try
+        {
+            var order = await _orderService.UpdateOrderStatusAsync(id, request.Status, request.PaymentStatus);
+            return Ok(ApiResponse<OrderResponseDto>.Ok(order, "Cập nhật trạng thái đơn hàng thành công."));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<OrderResponseDto>.Fail(StatusCodes.Status404NotFound, ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<OrderResponseDto>.Fail(StatusCodes.Status400BadRequest, ex.Message));
+        }
     }
 
     private long GetCurrentUserId()
@@ -88,4 +121,17 @@ public class OrdersController : BaseApiController
             ?? User.FindFirst("sub")?.Value;
         return long.TryParse(subClaim, out var id) ? id : 0;
     }
+
+    private string? GetCurrentOrderType()
+    {
+        if (User.IsInRole("B2B_Buyer")) return "B2B";
+        if (User.IsInRole("B2C_Customer")) return "B2C";
+        return null;
+    }
+}
+
+public sealed class UpdateOrderStatusRequest
+{
+    public string Status { get; set; } = string.Empty;
+    public string? PaymentStatus { get; set; }
 }

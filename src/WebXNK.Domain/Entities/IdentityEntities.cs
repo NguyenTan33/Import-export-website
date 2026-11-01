@@ -21,6 +21,24 @@ public class User : BaseEntity<long>, IAuditableEntity
     public Company? Company { get; set; }
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
+}
+
+public class CustomerAddress : BaseEntity<long>
+{
+    public long UserId { get; set; }
+    public User User { get; set; } = null!;
+    public string RecipientName { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Province { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
+    public string Ward { get; set; } = string.Empty;
+    public string AddressLine { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = "VNM";
+    public string PostalCode { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public class Role : BaseEntity<int>

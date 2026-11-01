@@ -38,7 +38,6 @@ public static class DependencyInjection
         services.AddScoped<ITrackingService, TrackingService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
 
-
         return services;
     }
 }

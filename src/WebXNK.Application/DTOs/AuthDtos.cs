@@ -1,24 +1,46 @@
+using System.ComponentModel.DataAnnotations;
+using WebXNK.Application.Validators;
+
 namespace WebXNK.Application.DTOs;
 
 public class RegisterB2cRequestDto
 {
+    [Required, RegularExpression(ValidationPatterns.Email)]
     public string Email { get; set; } = string.Empty;
+
+    [Required, RegularExpression(ValidationPatterns.StrongPassword)]
     public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+
+    [Required, MaxLength(150)]
     public string FullName { get; set; } = string.Empty;
-    public string? PhoneNumber { get; set; }
+
+    [Required, RegularExpression(ValidationPatterns.VietnamPhone)]
+    public string PhoneNumber { get; set; } = string.Empty;
 }
 
 public class RegisterB2bRequestDto
 {
     // Thông tin tài khoản đại diện
+    [Required, RegularExpression(ValidationPatterns.Email)]
     public string Email { get; set; } = string.Empty;
+    [Required, RegularExpression(ValidationPatterns.StrongPassword)]
     public string Password { get; set; } = string.Empty;
+    [Required, Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+    [Required, MaxLength(150)]
     public string FullName { get; set; } = string.Empty;
-    public string? PhoneNumber { get; set; }
+    [Required, RegularExpression(ValidationPatterns.VietnamPhone)]
+    public string PhoneNumber { get; set; } = string.Empty;
 
     // Thông tin pháp nhân Doanh nghiệp B2B (EXP-14)
+    [Required, MaxLength(255)]
     public string CompanyName { get; set; } = string.Empty;
+    [Required, MinLength(5)]
     public string TaxId { get; set; } = string.Empty; // Mã số thuế quốc tế
+    [Required, RegularExpression("^[A-Za-z]{3}$")]
     public string CountryCode { get; set; } = string.Empty; // ISO 3166-1 alpha-3: USA, DEU, VNM, JPN
     public string? BusinessLicenseUrl { get; set; }
     public string? Website { get; set; }
@@ -27,8 +49,22 @@ public class RegisterB2bRequestDto
 
 public class LoginRequestDto
 {
+    [Required, RegularExpression(ValidationPatterns.Email)]
     public string Email { get; set; } = string.Empty;
+    [Required]
     public string Password { get; set; } = string.Empty;
+}
+
+public class UpdateUserProfileRequestDto
+{
+    [Required, MaxLength(150)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required, RegularExpression(ValidationPatterns.Email)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, RegularExpression(ValidationPatterns.VietnamPhone)]
+    public string PhoneNumber { get; set; } = string.Empty;
 }
 
 public class RefreshTokenRequestDto

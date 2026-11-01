@@ -645,6 +645,12 @@ namespace WebXNK.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrlsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -722,6 +728,64 @@ namespace WebXNK.Infrastructure.Migrations
                     b.HasKey("ProductId", "LanguageCode");
 
                     b.ToTable("ProductTranslations", (string)null);
+                });
+
+            modelBuilder.Entity("WebXNK.Domain.Entities.RfqCounterOffer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProposedIncotermCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProposedPaymentTerms")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("ProposedTotalAmountUsd")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ProposedUnitPriceUsd")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<long>("RfqRequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SenderName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SenderRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("SenderUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RfqRequestId");
+
+                    b.ToTable("RfqCounterOffers");
                 });
 
             modelBuilder.Entity("WebXNK.Domain.Entities.RfqItem", b =>
@@ -909,6 +973,135 @@ namespace WebXNK.Infrastructure.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
+            modelBuilder.Entity("WebXNK.Domain.Entities.SalesContract", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BuyerAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerCompanyName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerRepresentative")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerSignatureData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("BuyerSignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BuyerSignedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerTaxCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerTitle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContractNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContractPdfUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DigitalSignatureHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IncotermCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaymentTerms")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PortOfDischarge")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PortOfLoading")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("RfqRequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("SellerAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerCompanyName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerRepresentative")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerSignatureData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("SellerSignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SellerSignedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerStampData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerTaxCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerTitle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("TargetDeliveryDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("TotalAmountUsd")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RfqRequestId")
+                        .IsUnique();
+
+                    b.ToTable("SalesContracts");
+                });
+
             modelBuilder.Entity("WebXNK.Domain.Entities.ShipmentMilestone", b =>
                 {
                     b.Property<long>("Id")
@@ -999,6 +1192,75 @@ namespace WebXNK.Infrastructure.Migrations
                     b.HasIndex("WarehouseId");
 
                     b.ToTable("StockReservations", (string)null);
+                });
+
+            modelBuilder.Entity("WebXNK.Domain.Entities.CustomerAddress", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AddressLine")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("District")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Ward")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IsDefault")
+                        .IsUnique()
+                        .HasFilter("[IsDefault] = 1");
+
+                    b.ToTable("CustomerAddresses", (string)null);
                 });
 
             modelBuilder.Entity("WebXNK.Domain.Entities.User", b =>
@@ -1137,6 +1399,17 @@ namespace WebXNK.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("WebXNK.Domain.Entities.CustomerAddress", b =>
+                {
+                    b.HasOne("WebXNK.Domain.Entities.User", "User")
+                        .WithMany("Addresses")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("WebXNK.Domain.Entities.CategoryTranslation", b =>
@@ -1298,6 +1571,17 @@ namespace WebXNK.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("WebXNK.Domain.Entities.RfqCounterOffer", b =>
+                {
+                    b.HasOne("WebXNK.Domain.Entities.RfqRequest", "RfqRequest")
+                        .WithMany("CounterOffers")
+                        .HasForeignKey("RfqRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RfqRequest");
+                });
+
             modelBuilder.Entity("WebXNK.Domain.Entities.RfqItem", b =>
                 {
                     b.HasOne("WebXNK.Domain.Entities.Product", "Product")
@@ -1353,6 +1637,17 @@ namespace WebXNK.Infrastructure.Migrations
                     b.Navigation("Company");
 
                     b.Navigation("Incoterm");
+                });
+
+            modelBuilder.Entity("WebXNK.Domain.Entities.SalesContract", b =>
+                {
+                    b.HasOne("WebXNK.Domain.Entities.RfqRequest", "RfqRequest")
+                        .WithOne("SalesContract")
+                        .HasForeignKey("WebXNK.Domain.Entities.SalesContract", "RfqRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RfqRequest");
                 });
 
             modelBuilder.Entity("WebXNK.Domain.Entities.ShipmentMilestone", b =>
@@ -1441,11 +1736,15 @@ namespace WebXNK.Infrastructure.Migrations
 
             modelBuilder.Entity("WebXNK.Domain.Entities.RfqRequest", b =>
                 {
+                    b.Navigation("CounterOffers");
+
                     b.Navigation("NegotiationHistories");
 
                     b.Navigation("Payments");
 
                     b.Navigation("RfqItems");
+
+                    b.Navigation("SalesContract");
 
                     b.Navigation("ShipmentMilestones");
                 });
@@ -1458,6 +1757,8 @@ namespace WebXNK.Infrastructure.Migrations
             modelBuilder.Entity("WebXNK.Domain.Entities.User", b =>
                 {
                     b.Navigation("Company");
+
+                    b.Navigation("Addresses");
 
                     b.Navigation("Orders");
 

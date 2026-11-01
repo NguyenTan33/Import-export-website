@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
 using WebXNK.Domain.Entities;
 using WebXNK.Infrastructure.Persistence.Context;
 
@@ -15,6 +16,17 @@ public static class DbInitializer
             if (context.Database.IsSqlServer())
             {
                 await context.Database.MigrateAsync();
+                await context.Database.ExecuteSqlRawAsync(@"
+                    IF COL_LENGTH('Products', 'ImageUrl') IS NULL
+                    BEGIN
+                        ALTER TABLE Products ADD ImageUrl NVARCHAR(MAX) NULL;
+                    END
+
+                    IF COL_LENGTH('Products', 'ImageUrlsJson') IS NULL
+                    BEGIN
+                        ALTER TABLE Products ADD ImageUrlsJson NVARCHAR(MAX) NULL;
+                    END
+                ");
             }
 
             await SeedRolesAsync(context);
@@ -22,6 +34,7 @@ public static class DbInitializer
             await SeedIncotermsAsync(context);
             await SeedWarehousesAsync(context);
             await SeedCategoriesAndProductsAsync(context);
+            await EnsureProductDefaultImagesAsync(context);
             await SeedUsersAndSampleRfqAsync(context);
 
             await context.SaveChangesAsync();
@@ -29,8 +42,31 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Lưu ý: Không thể hoàn tất nạp dữ liệu mẫu CSDL ({Message}), ứng dụng tiếp tục khởi động.", ex.Message);
+            // LocalDB may be unavailable on machines without the LocalDB runtime.
+            // Keep the API process alive so the client can still start; database-backed
+            // endpoints will become usable after the configured database is available
+            // and the application is restarted.
+            if (HasSqlException(ex))
+            {
+                logger.LogError(
+                    ex,
+                    "Không thể kết nối SQL Server khi chạy migration/seed. API vẫn khởi động; hãy kiểm tra ConnectionStrings:DefaultConnection và dịch vụ SQL Server/LocalDB, sau đó khởi động lại.");
+                return;
+            }
+
+            logger.LogError(ex, "Lỗi không thể phục hồi trong quá trình nạp dữ liệu mẫu vào CSDL.");
+            throw;
         }
+    }
+
+    private static bool HasSqlException(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is SqlException) return true;
+        }
+
+        return false;
     }
 
     private static async Task SeedRolesAsync(WebXnkDbContext context)
@@ -198,6 +234,7 @@ public static class DbInitializer
                 HsCode = "6404.11.00",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 25.00m,
+                ImageUrl = "/images/products/shoes-snk-v1.jpg",
                 SpecificationsJson = "{\"Material\":\"Canvas/Rubber\",\"Gender\":\"Unisex\",\"Sizes\":\"38-44\",\"Packing\":\"1 pair/box, 12 boxes/carton\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -228,6 +265,7 @@ public static class DbInitializer
                 HsCode = "4402.90.10",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 1.20m,
+                ImageUrl = "/images/products/char-coco-bbq.jpg",
                 SpecificationsJson = "{\"FixedCarbon\":\"75-80%\",\"Calorie\":\"7200-7500 kcal/kg\",\"Moisture\":\"< 5%\",\"Ash\":\"< 3%\",\"BurningTime\":\"3.5-4 hours\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -257,6 +295,7 @@ public static class DbInitializer
                 HsCode = "4417.00.10",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 0.65m,
+                ImageUrl = "/images/products/broom-euc-120.jpg",
                 SpecificationsJson = "{\"Wood\":\"Eucalyptus / Acacia\",\"Length\":\"120cm\",\"Diameter\":\"2.2cm\",\"Coating\":\"PVC Shrink Pattern\",\"Cap\":\"Plastic hook\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -286,6 +325,7 @@ public static class DbInitializer
                 HsCode = "0801.32.00",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 8.50m,
+                ImageUrl = "/images/products/cashew-w240-bp.jpg",
                 SpecificationsJson = "{\"Grade\":\"W320\",\"Moisture\":\"< 5%\",\"Broken\":\"< 5%\",\"Packaging\":\"2 vacuum flexi tins (25lbs each) per carton\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -315,6 +355,7 @@ public static class DbInitializer
                 HsCode = "3919.10.10",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 0.85m,
+                ImageUrl = "/images/products/tape-opp-48x100.jpg",
                 SpecificationsJson = "{\"Width\":\"48mm (2 inch)\",\"Length\":\"100 yard\",\"Thickness\":\"50 micron\",\"Film\":\"BOPP film with acrylic water adhesive\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -344,6 +385,7 @@ public static class DbInitializer
                 HsCode = "3920.10.10",
                 CountryOfOrigin = "VNM",
                 DefaultRetailPriceUsd = 3.20m,
+                ImageUrl = "/images/products/film-pe-pallet.jpg",
                 SpecificationsJson = "{\"Width\":\"500mm\",\"Thickness\":\"17 micron\",\"WeightPerRoll\":\"2.8 kg\",\"CoreWeight\":\"0.3 kg\",\"Elongation\":\"300-350%\"}",
                 Translations = new List<ProductTranslation>
                 {
@@ -450,6 +492,37 @@ public static class DbInitializer
         };
 
         await context.InventoryLedger.AddRangeAsync(initialStockEntries);
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureProductDefaultImagesAsync(WebXnkDbContext context)
+    {
+        var defaultImageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["SHOES-SNK-V1"] = "/images/products/shoes-snk-v1.jpg",
+            ["CHAR-COCO-BBQ"] = "/images/products/char-coco-bbq.jpg",
+            ["BROOM-EUC-120"] = "/images/products/broom-euc-120.jpg",
+            ["AGRI-CASHEW-W320"] = "/images/products/cashew-w240-bp.jpg",
+            ["CASHEW-W240-BP"] = "/images/products/cashew-w240-bp.jpg",
+            ["TAPE-OPP-48X100"] = "/images/products/tape-opp-48x100.jpg",
+            ["PE-FILM-50-17"] = "/images/products/film-pe-pallet.jpg",
+            ["FILM-PE-PALLET"] = "/images/products/film-pe-pallet.jpg"
+        };
+
+        var productsWithoutImage = await context.Products
+            .Where(p => p.ImageUrl == null || p.ImageUrl == "")
+            .ToListAsync();
+
+        if (productsWithoutImage.Count == 0) return;
+
+        foreach (var p in productsWithoutImage)
+        {
+            if (defaultImageMap.TryGetValue(p.BaseSku, out var imgUrl))
+            {
+                p.ImageUrl = imgUrl;
+            }
+        }
+
         await context.SaveChangesAsync();
     }
 
@@ -619,66 +692,6 @@ public static class DbInitializer
 
                 await context.RfqRequests.AddAsync(rfq);
                 await context.SaveChangesAsync();
-
-                // 4. Khởi tạo tiến trình theo dõi tàu biển (Shipment Milestones - EXP-72 đến EXP-75)
-                if (!await context.ShipmentMilestones.AnyAsync(m => m.TrackingNumber == "QTH-BL-2026-JP01"))
-                {
-                    var msList = new List<ShipmentMilestone>
-                    {
-                        new()
-                        {
-                            RfqId = rfq.Id,
-                            TrackingNumber = "QTH-BL-2026-JP01",
-                            VesselName = "ONE APUS",
-                            VoyageNumber = "088E",
-                            MilestoneStatus = "FACTORY_READY",
-                            ActualDate = DateTime.UtcNow.AddDays(-10),
-                            CurrentLocation = "Xưởng Quang Tấn Hoàng, KCN Sóng Thần, Bình Dương",
-                            Note = "Hoàn tất đóng thùng & Kiểm định tại Nhà máy đạt chuẩn JIS Nhật Bản.",
-                            CreatedAt = DateTime.UtcNow.AddDays(-10)
-                        },
-                        new()
-                        {
-                            RfqId = rfq.Id,
-                            TrackingNumber = "QTH-BL-2026-JP01",
-                            VesselName = "ONE APUS",
-                            VoyageNumber = "088E",
-                            MilestoneStatus = "CUSTOMS_CLEARED",
-                            ActualDate = DateTime.UtcNow.AddDays(-8),
-                            CurrentLocation = "Hải quan Cửa khẩu Cảng Cát Lái, TP.HCM",
-                            Note = "Thông quan Hải quan Cảng Cát Lái luồng Xanh điện tử (VNACCS/VCIS).",
-                            CreatedAt = DateTime.UtcNow.AddDays(-8)
-                        },
-                        new()
-                        {
-                            RfqId = rfq.Id,
-                            TrackingNumber = "QTH-BL-2026-JP01",
-                            VesselName = "ONE APUS",
-                            VoyageNumber = "088E",
-                            MilestoneStatus = "VESSEL_DEPARTED",
-                            ActualDate = DateTime.UtcNow.AddDays(-7),
-                            CurrentLocation = "Cầu cảng TC01, Tân Cảng Cát Lái",
-                            Note = "Tàu bốc hàng & Rời Cảng Cát Lái (POL) đi Tokyo Port.",
-                            CreatedAt = DateTime.UtcNow.AddDays(-7)
-                        },
-                        new()
-                        {
-                            RfqId = rfq.Id,
-                            TrackingNumber = "QTH-BL-2026-JP01",
-                            VesselName = "ONE APUS",
-                            VoyageNumber = "088E",
-                            MilestoneStatus = "ON_SEA",
-                            ActualDate = null,
-                            EstimatedArrivalDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)),
-                            CurrentLocation = "Tọa độ 21.85° N, 124.62° E (Vùng biển quốc tế)",
-                            Note = "Tàu đang hành trình trên biển tốc độ 18.4 knots. Dự kiến cập cảng Tokyo đúng tiến độ.",
-                            CreatedAt = DateTime.UtcNow.AddDays(-3)
-                        }
-                    };
-
-                    await context.ShipmentMilestones.AddRangeAsync(msList);
-                    await context.SaveChangesAsync();
-                }
             }
         }
     }

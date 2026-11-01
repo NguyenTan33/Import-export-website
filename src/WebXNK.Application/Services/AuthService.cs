@@ -301,4 +301,25 @@ public class AuthService : IAuthService
             }
         };
     }
+
+    public async Task<UserProfileDto> UpdateCurrentUserProfileAsync(
+        long userId,
+        UpdateUserProfileRequestDto request)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+            ?? throw new KeyNotFoundException($"Không tìm thấy người dùng có ID = {userId}");
+
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        if (await _context.Users.AnyAsync(u => u.Id != userId && u.Email == normalizedEmail))
+        {
+            throw new InvalidOperationException("Email này đã được sử dụng bởi tài khoản khác.");
+        }
+
+        user.FullName = request.FullName.Trim();
+        user.Email = normalizedEmail;
+        user.PhoneNumber = request.PhoneNumber.Trim();
+        await _context.SaveChangesAsync();
+
+        return await GetCurrentUserProfileAsync(userId);
+    }
 }

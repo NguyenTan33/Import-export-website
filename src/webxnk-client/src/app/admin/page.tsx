@@ -1,20 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ExportDocumentDownloader } from "@/components/admin/ExportDocumentDownloader";
 import { WarehouseInventoryMonitor } from "@/components/admin/WarehouseInventoryMonitor";
 import { ExportAnalyticsDashboard } from "@/components/admin/ExportAnalyticsDashboard";
 import { OrderManagementPanel } from "@/components/admin/OrderManagementPanel";
 import { PartnerVerificationPanel } from "@/components/admin/PartnerVerificationPanel";
-import { Shield, TrendingUp, Anchor, Box, BarChart3, FileText, Warehouse, Truck, Building } from "lucide-react";
-import { useCurrency } from "@/context/CurrencyContext";
+import { ProductManagementPanel } from "@/components/admin/ProductManagementPanel";
+import { ProductMediaManagerPanel } from "@/components/admin/ProductMediaManagerPanel";
+import { ContractManagementPanel } from "@/components/admin/ContractManagementPanel";
+import { Shield, Box, BarChart3, FileText, Warehouse, Truck, Building, Image as ImageIcon, FileSignature } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "documents" | "inventory" | "orders" | "partners">("analytics");
-  const { formatPrice } = useCurrency();
+  const [activeTab, setActiveTab] = useState<
+    | "analytics"
+    | "documents"
+    | "inventory"
+    | "orders"
+    | "partners"
+    | "products"
+    | "media"
+    | "contracts"
+  >("analytics");
   const { language } = useLanguage();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
   const isVi = language === "vi";
+  const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) router.replace("/login");
+    else if (!isAdmin) router.replace("/");
+  }, [isAdmin, isLoading, router, user]);
+
+  if (isLoading || !isAdmin) {
+    return <div className="mx-auto max-w-7xl p-10 text-center text-sm text-neutral-500">{isVi ? "Đang kiểm tra quyền truy cập..." : "Checking access..."}</div>;
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -44,72 +69,19 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* KPI Stats Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="border border-black p-4 bg-white shadow-sm rounded">
-          <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
-            <span>{isVi ? "TỔNG DOANH THU XUẤT KHẨU" : "TOTAL EXPORT REVENUE"}</span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="mt-2 text-2xl font-black font-mono text-[#0E4B94]">
-            {formatPrice(329750)}
-          </p>
-          <span className="text-[10px] font-mono text-emerald-600 font-bold">
-            {isVi ? "+24.5% so với cùng kỳ" : "+24.5% year-on-year"}
-          </span>
-        </div>
-
-        <div className="border border-black p-4 bg-white shadow-sm rounded">
-          <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
-            <span>{isVi ? "CONTAINER ĐANG ĐÓNG HÀNG" : "ACTIVE STOWAGE CONTAINERS"}</span>
-            <Box className="w-4 h-4 text-black" />
-          </div>
-          <p className="mt-2 text-2xl font-black font-mono text-black">4x40HC, 2x20GP</p>
-          <span className="text-[10px] font-mono text-neutral-600">
-            {isVi ? "Tại Cảng Cát Lái & Kho BD" : "At Cat Lai Port & VSIP 1"}
-          </span>
-        </div>
-
-        <div className="border border-black p-4 bg-white shadow-sm rounded">
-          <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
-            <span>{isVi ? "ĐƠN BÁO GIÁ ĐANG XỬ LÝ" : "PENDING B2B RFQs"}</span>
-            <Anchor className="w-4 h-4 text-[#0E4B94]" />
-          </div>
-          <p className="mt-2 text-2xl font-black font-mono text-black">
-            {isVi ? "5 ĐƠN HÀNG" : "5 INQUIRIES"}
-          </p>
-          <span className="text-[10px] font-mono text-neutral-600">
-            {isVi ? "Thị trường Nhật Bản, Mỹ, EU" : "Markets: Japan, US, EU"}
-          </span>
-        </div>
-
-        <div className="border border-black p-4 bg-white shadow-sm rounded">
-          <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
-            <span>QUESTPDF GENERATOR ENGINE</span>
-            <Shield className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="mt-2 text-2xl font-black font-mono text-emerald-700">
-            {isVi ? "HOẠT ĐỘNG" : "ONLINE"}
-          </p>
-          <span className="text-[10px] font-mono text-neutral-600">
-            {isVi ? "PI, CI, PKL xuất tức thì" : "Instant PI, CI, PKL rendering"}
-          </span>
-        </div>
-      </div>
-
       {/* Navigation Tab Pills */}
-      <div className="flex border-b border-black overflow-x-auto">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8">
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "analytics"
-              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
-              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>
+          <span className="min-w-0 break-words text-center">
             {isVi
               ? "1. Phân Tích Ngoại Thương & Doanh Số (BI)"
               : "1. Foreign Trade & BI Analytics"}
@@ -119,14 +91,14 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("documents")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "documents"
-              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
-              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>
+          <span className="min-w-0 break-words text-center">
             {isVi
               ? "2. Xuất Bộ 3 Chứng Từ QuestPDF"
               : "2. QuestPDF 3-Document Suite"}
@@ -136,14 +108,14 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("inventory")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "inventory"
-              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
-              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
           }`}
         >
           <Warehouse className="w-4 h-4" />
-          <span>
+          <span className="min-w-0 break-words text-center">
             {isVi
               ? "3. Giám Sát Đa Kho & Giữ Chỗ 30 Phút"
               : "3. Multi-Warehouse & 30-Min Reservation"}
@@ -153,14 +125,14 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("orders")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "orders"
-              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
-              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
           }`}
         >
           <Truck className="w-4 h-4 text-[#0E4B94]" />
-          <span>
+          <span className="min-w-0 break-words text-center">
             {isVi
               ? "4. Quản Lý Đơn Hàng & Vận Chuyển"
               : "4. Order Fulfillment & Shipping"}
@@ -170,17 +142,64 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => setActiveTab("partners")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-mono uppercase tracking-wider transition-colors border-t-2 rounded-t whitespace-nowrap ${
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
             activeTab === "partners"
-              ? "border-[#0E4B94] bg-white text-[#0E4B94] border-x border-b-0 -mb-px"
-              : "border-transparent bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
           }`}
         >
           <Building className="w-4 h-4 text-emerald-600" />
-          <span>
+          <span className="min-w-0 break-words text-center">
             {isVi
               ? "5. Duyệt Doanh Nghiệp B2B & Ủy Nhiệm Chi"
               : "5. B2B Verification & Wire Transfers"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("products")}
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
+            activeTab === "products"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <Box className="w-4 h-4 text-[#0E4B94]" />
+          <span className="min-w-0 break-words text-center">
+            {isVi ? "6. Quản Lý Sản Phẩm" : "6. Product Management"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("media")}
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
+            activeTab === "media"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <ImageIcon className="w-4 h-4 text-[#C9252C]" />
+          <span className="min-w-0 break-words text-center">
+            {isVi ? "7. Chỉnh Sửa Ảnh Sản Phẩm" : "7. Edit Product Media"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("contracts")}
+          className={`flex w-full min-w-0 items-center justify-center gap-2 rounded border px-2 py-3 text-center text-xs font-bold font-mono uppercase leading-snug tracking-wider transition-colors ${
+            activeTab === "contracts"
+              ? "border-[#0E4B94] bg-blue-50 text-[#0E4B94]"
+              : "border-neutral-300 bg-neutral-100 text-neutral-600 hover:text-black hover:bg-neutral-200"
+          }`}
+        >
+          <FileSignature className="w-4 h-4 text-[#0E4B94]" />
+          <span className="min-w-0 break-words text-center">
+            {isVi
+              ? "8. Hợp Đồng Ngoại Thương & Đàm Phán B2B (Chat Realtime)"
+              : "8. E-Contract & Live B2B Negotiation"}
           </span>
         </button>
       </div>
@@ -191,6 +210,9 @@ export default function AdminPage() {
       {activeTab === "inventory" && <WarehouseInventoryMonitor />}
       {activeTab === "orders" && <OrderManagementPanel />}
       {activeTab === "partners" && <PartnerVerificationPanel />}
+      {activeTab === "products" && <ProductManagementPanel />}
+      {activeTab === "media" && <ProductMediaManagerPanel />}
+      {activeTab === "contracts" && <ContractManagementPanel />}
     </div>
   );
 }

@@ -32,6 +32,8 @@ public class Product : BaseEntity<long>, IAuditableEntity, ISoftDeletable
     public string HsCode { get; set; } = string.Empty;
     public string CountryOfOrigin { get; set; } = "VNM";
     public decimal DefaultRetailPriceUsd { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageUrlsJson { get; set; }
     public string? SpecificationsJson { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; }

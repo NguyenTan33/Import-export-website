@@ -15,6 +15,7 @@ public class WebXnkDbContext : DbContext, IApplicationDbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Company> Companies => Set<Company>();
+    public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
 
     // Catalog & Packaging
     public DbSet<Category> Categories => Set<Category>();
@@ -36,6 +37,8 @@ public class WebXnkDbContext : DbContext, IApplicationDbContext
     public DbSet<RfqItem> RfqItems => Set<RfqItem>();
     public DbSet<RfqNegotiationHistory> RfqNegotiationHistories => Set<RfqNegotiationHistory>();
     public DbSet<B2BPayment> B2BPayments => Set<B2BPayment>();
+    public DbSet<SalesContract> SalesContracts => Set<SalesContract>();
+    public DbSet<RfqCounterOffer> RfqCounterOffers => Set<RfqCounterOffer>();
 
     // Logistics & Warehouses
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();

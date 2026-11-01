@@ -21,3 +21,13 @@ public class CalculateTierPriceResponseDto
     public decimal ConvertedTotalAmount { get; set; }
     public bool IsMoqSatisfied { get; set; }
 }
+
+public class ExchangeRateDto
+{
+    public string FromCurrency { get; set; } = "USD";
+    public string ToCurrency { get; set; } = string.Empty;
+    public decimal Rate { get; set; }
+    public string Source { get; set; } = string.Empty;
+    public DateTime FetchedAt { get; set; }
+}
+

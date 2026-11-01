@@ -241,7 +241,7 @@ public class QuestPdfExportDocumentService : IExportDocumentService
 
     private async Task<RfqRequest> GetRfqWithDetailsAsync(long rfqId, CancellationToken cancellationToken)
     {
-        return await _context.RfqRequests
+        var rfq = await _context.RfqRequests
             .Include(r => r.Company)
             .Include(r => r.Incoterm)
             .Include(r => r.RfqItems)
@@ -250,7 +250,23 @@ public class QuestPdfExportDocumentService : IExportDocumentService
             .Include(r => r.RfqItems)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Translations)
-            .FirstOrDefaultAsync(r => r.Id == rfqId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Không tìm thấy đơn báo giá RFQ có ID = {rfqId}");
+            .FirstOrDefaultAsync(r => r.Id == rfqId, cancellationToken);
+
+        if (rfq == null)
+        {
+            rfq = await _context.RfqRequests
+                .Include(r => r.Company)
+                .Include(r => r.Incoterm)
+                .Include(r => r.RfqItems)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.ExportPackaging)
+                .Include(r => r.RfqItems)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.Translations)
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return rfq ?? throw new KeyNotFoundException($"Không tìm thấy đơn báo giá RFQ có ID = {rfqId}");
     }
 }

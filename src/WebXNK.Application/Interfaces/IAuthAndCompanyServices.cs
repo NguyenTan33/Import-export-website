@@ -9,6 +9,7 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
     Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request);
     Task<UserProfileDto> GetCurrentUserProfileAsync(long userId);
+    Task<UserProfileDto> UpdateCurrentUserProfileAsync(long userId, UpdateUserProfileRequestDto request);
 }
 
 public interface ICompanyManagementService

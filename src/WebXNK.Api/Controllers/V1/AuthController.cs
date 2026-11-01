@@ -69,6 +69,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [Authorize]
     [HttpGet("me")]
+    [HttpGet("~/api/user/profile")]
     [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetCurrentUserProfile()
@@ -83,5 +84,28 @@ public class AuthController : BaseApiController
 
         var profile = await _authService.GetCurrentUserProfileAsync(userId);
         return Ok(ApiResponse<UserProfileDto>.Ok(profile));
+    }
+
+    /// <summary>
+    /// Cập nhật họ tên, email và số điện thoại của người dùng hiện tại.
+    /// </summary>
+    [Authorize]
+    [HttpPut("me")]
+    [HttpPut("~/api/user/profile")]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateCurrentUserProfile([FromBody] UpdateUserProfileRequestDto request)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                       ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(ApiResponse<object>.Fail(StatusCodes.Status401Unauthorized, "Token không hợp lệ hoặc thiếu thông tin định danh."));
+        }
+
+        var profile = await _authService.UpdateCurrentUserProfileAsync(userId, request);
+        return Ok(ApiResponse<UserProfileDto>.Ok(profile, "Cập nhật hồ sơ thành công."));
     }
 }

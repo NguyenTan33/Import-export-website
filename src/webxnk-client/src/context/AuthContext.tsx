@@ -1,8 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { ApiUserProfile, authApi } from "@/services/api";
+import { decodeJwtUserId } from "@/utils/validation";
 
-export type UserRole = "B2C_CUSTOMER" | "B2B_BUYER" | "SUPER_ADMIN";
+export type UserRole = "B2C_CUSTOMER" | "B2B_BUYER" | "SUPER_ADMIN" | "SALES_EXECUTIVE" | "WAREHOUSE_MANAGER";
 
 export interface AuthUser {
   id: string;
@@ -16,6 +18,7 @@ export interface AuthUser {
   companyAddress?: string;
   companyWebsite?: string;
   isVerifiedB2b?: boolean;
+  isDemo?: boolean;
 }
 
 interface RegisterB2cData {
@@ -23,180 +26,225 @@ interface RegisterB2cData {
   email: string;
   phone: string;
   password: string;
+  confirmPassword: string;
 }
 
-interface RegisterB2bData {
+interface RegisterB2bData extends RegisterB2cData {
   companyName: string;
   taxId: string;
   country: string;
   companyAddress: string;
   companyWebsite?: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  password: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   loginAsDemo: (demoType: "b2c" | "b2b" | "admin") => void;
   registerB2c: (data: RegisterB2cData) => Promise<boolean>;
   registerB2b: (data: RegisterB2bData) => Promise<boolean>;
+  loadProfile: () => Promise<boolean>;
+  updateProfile: (data: { fullName: string; email: string; phone: string }) => Promise<boolean>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
+  isLoading: true,
   login: async () => false,
   loginAsDemo: () => {},
   registerB2c: async () => false,
   registerB2b: async () => false,
+  loadProfile: async () => false,
+  updateProfile: async () => false,
   logout: () => {},
+});
+
+const USER_STORAGE_KEY = "webxnk_user";
+const TOKEN_STORAGE_KEY = "webxnk_token";
+
+const normalizeRole = (role?: string): UserRole => {
+  const normalized = role?.toLowerCase() ?? "";
+  if (normalized.includes("admin")) return "SUPER_ADMIN";
+  if (normalized.includes("sales")) return "SALES_EXECUTIVE";
+  if (normalized.includes("warehouse")) return "WAREHOUSE_MANAGER";
+  if (normalized.includes("b2b")) return "B2B_BUYER";
+  return "B2C_CUSTOMER";
+};
+
+const getRole = (roles: string[] = []): UserRole =>
+  roles.map(normalizeRole).find((role) => role === "SUPER_ADMIN") ??
+  roles.map(normalizeRole).find((role) => role === "B2B_BUYER") ??
+  roles.map(normalizeRole).find((role) => role === "B2C_CUSTOMER") ??
+  roles.map(normalizeRole).find((role) => role === "SALES_EXECUTIVE") ??
+  roles.map(normalizeRole).find((role) => role === "WAREHOUSE_MANAGER") ??
+  "B2C_CUSTOMER";
+
+const mapApiUser = (profile: ApiUserProfile, token?: string): AuthUser => ({
+  id: (token && decodeJwtUserId(token)) || String(profile.id),
+  email: profile.email,
+  fullName: profile.fullName,
+  phone: profile.phoneNumber || "",
+  role: getRole(profile.roles),
+  companyName: profile.company?.companyName,
+  taxId: profile.company?.taxId,
+  country: profile.company?.countryCode,
+  companyWebsite: profile.company?.website,
+  isVerifiedB2b: profile.company?.verificationStatus === "VERIFIED",
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("webxnk_user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("webxnk_user");
-      }
+  const saveSession = useCallback((userData: AuthUser, token: string) => {
+    setUser(userData);
+    setIsLoading(false);
+    try {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } catch {
+      // Keep the authenticated session in memory if browser storage is unavailable.
     }
   }, []);
 
-  const saveSession = (userData: AuthUser, token = "mock_jwt_token_webxnk_auth") => {
-    setUser(userData);
-    localStorage.setItem("webxnk_user", JSON.stringify(userData));
-    localStorage.setItem("webxnk_token", token);
-  };
+  const completeAuth = useCallback((response: Awaited<ReturnType<typeof authApi.login>>) => {
+    saveSession(mapApiUser(response.user, response.accessToken), response.accessToken);
+  }, [saveSession]);
 
-  const login = async (email: string): Promise<boolean> => {
-    // Check if matches known demo or create session
-    let authUser: AuthUser;
-    if (email.toLowerCase().includes("sato") || email.toLowerCase().includes("b2b")) {
-      authUser = {
-        id: "usr_b2b_sato",
-        email: email,
-        fullName: "Kenji Sato",
-        role: "B2B_BUYER",
-        companyName: "TOKYO OVERSEAS LOGISTICS & TRADING CO., LTD",
-        taxId: "JP-9010401020304",
-        country: "Japan (Nhật Bản)",
-        phone: "+81 3 5555 0192",
-        isVerifiedB2b: true,
-      };
-    } else if (email.toLowerCase().includes("admin")) {
-      authUser = {
-        id: "usr_admin_qth",
-        email: email,
-        fullName: "Võ Văn Phú (Super Admin)",
-        role: "SUPER_ADMIN",
-        companyName: "CÔNG TY TNHH SX & TM DV XNK QUANG TẤN HOÀNG",
-        phone: "(+84) 901 234 567",
-      };
-    } else {
-      authUser = {
-        id: `usr_${Date.now()}`,
-        email: email,
-        fullName: email.split("@")[0],
-        role: "B2C_CUSTOMER",
-        country: "United States",
-      };
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      const savedUser = localStorage.getItem(USER_STORAGE_KEY);
+      if (!token || !savedUser) return;
+      const parsed = JSON.parse(savedUser) as AuthUser;
+      if (parsed?.id && parsed?.email) {
+        setUser({
+          ...parsed,
+          id: decodeJwtUserId(token) || parsed.id,
+          role: normalizeRole(parsed.role),
+        });
+      }
+    } catch {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
 
-    saveSession(authUser);
-    return true;
-  };
-
-  const loginAsDemo = (demoType: "b2c" | "b2b" | "admin") => {
-    if (demoType === "b2b") {
-      saveSession({
-        id: "usr_b2b_sato",
-        email: "sato@tokyotrading.co.jp",
-        fullName: "Kenji Sato",
-        role: "B2B_BUYER",
-        companyName: "TOKYO OVERSEAS LOGISTICS CO., LTD",
-        taxId: "JP-9010401020304",
-        country: "Japan",
-        phone: "+81 3 5555 0192",
-        isVerifiedB2b: true,
-      });
-    } else if (demoType === "admin") {
-      saveSession({
-        id: "usr_admin_qth",
-        email: "admin@quangtanhoang.com",
-        fullName: "Võ Văn Phú",
-        role: "SUPER_ADMIN",
-        companyName: "CÔNG TY TNHH SX & TM DV XNK QUANG TẤN HOÀNG",
-        phone: "(+84) 28 3899 9999",
-      });
-    } else {
-      saveSession({
-        id: "usr_b2c_john",
-        email: "john.buyer@gmail.com",
-        fullName: "Johnathan Miller",
-        role: "B2C_CUSTOMER",
-        country: "United States",
-        phone: "+1 212 555 0199",
-      });
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await authApi.login(email.trim(), password);
+      completeAuth(response);
+      return true;
+    } catch {
+      return false;
     }
   };
 
   const registerB2c = async (data: RegisterB2cData): Promise<boolean> => {
-    const newUser: AuthUser = {
-      id: `usr_${Date.now()}`,
-      email: data.email,
-      fullName: data.fullName,
-      phone: data.phone,
-      role: "B2C_CUSTOMER",
-    };
-    saveSession(newUser);
-    return true;
+    try {
+      const response = await authApi.registerB2c({
+        fullName: data.fullName.trim(), email: data.email.trim(), phoneNumber: data.phone,
+        password: data.password, confirmPassword: data.confirmPassword,
+      });
+      completeAuth(response);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const registerB2b = async (data: RegisterB2bData): Promise<boolean> => {
-    const newUser: AuthUser = {
-      id: `usr_b2b_${Date.now()}`,
-      email: data.email,
-      fullName: data.fullName,
-      phone: data.phone,
-      role: "B2B_BUYER",
-      companyName: data.companyName,
-      taxId: data.taxId,
-      country: data.country,
-      companyAddress: data.companyAddress,
-      companyWebsite: data.companyWebsite,
-      isVerifiedB2b: true,
+    try {
+      const response = await authApi.registerB2b({
+        fullName: data.fullName.trim(), email: data.email.trim(), phoneNumber: data.phone,
+        password: data.password, confirmPassword: data.confirmPassword,
+        companyName: data.companyName.trim(), taxId: data.taxId.trim(),
+        countryCode: data.country.trim().toUpperCase(), website: data.companyWebsite,
+      });
+      completeAuth(response);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const loginAsDemo = (demoType: "b2c" | "b2b" | "admin") => {
+    const demoUsers: Record<typeof demoType, AuthUser> = {
+      b2b: {
+        id: "demo_b2b_sato", email: "sato@tokyotrading.co.jp", fullName: "Kenji Sato",
+        role: "B2B_BUYER", companyName: "TOKYO OVERSEAS LOGISTICS CO., LTD",
+        taxId: "JP-9010401020304", country: "JPN", phone: "0901234567", isVerifiedB2b: true, isDemo: true,
+      },
+      admin: {
+        id: "demo_admin_qth", email: "admin@quangtanhoang.com", fullName: "Võ Văn Phú",
+        role: "SUPER_ADMIN", companyName: "CÔNG TY TNHH SX & TM DV XNK QUANG TẤN HOÀNG",
+        phone: "0901234567", isDemo: true,
+      },
+      b2c: {
+        id: "demo_b2c_john", email: "john.buyer@gmail.com", fullName: "Johnathan Miller",
+        role: "B2C_CUSTOMER", country: "USA", phone: "0901234567", isDemo: true,
+      },
     };
-    saveSession(newUser);
-    return true;
+    saveSession(demoUsers[demoType], "demo-session");
+  };
+
+  const loadProfile = async (): Promise<boolean> => {
+    if (!user || user.isDemo) return !!user;
+    try {
+      const profile = await authApi.getProfile();
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY) || "";
+      const updatedUser = mapApiUser(profile, token);
+      setUser(updatedUser);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const updateProfile = async (data: { fullName: string; email: string; phone: string }): Promise<boolean> => {
+    if (!user) return false;
+    if (user.isDemo) {
+      const updatedUser = { ...user, ...data };
+      setUser(updatedUser);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      return true;
+    }
+    try {
+      const profile = await authApi.updateProfile({
+        fullName: data.fullName.trim(), email: data.email.trim(), phoneNumber: data.phone,
+      });
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY) || "";
+      const updatedUser = mapApiUser(profile, token);
+      setUser(updatedUser);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("webxnk_user");
-    localStorage.removeItem("webxnk_token");
+    try {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch {
+      // Clearing in-memory auth state is sufficient when storage is unavailable.
+    }
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        login,
-        loginAsDemo,
-        registerB2c,
-        registerB2b,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user, isAuthenticated: !!user, isLoading, login, loginAsDemo, registerB2c, registerB2b,
+      loadProfile, updateProfile, logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

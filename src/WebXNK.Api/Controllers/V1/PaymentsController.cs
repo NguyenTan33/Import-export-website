@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebXNK.Application.Common.Interfaces;
 using WebXNK.Application.Common.Models;
 using WebXNK.Application.DTOs;
 using WebXNK.Application.Interfaces;
@@ -10,10 +11,12 @@ namespace WebXNK.Api.Controllers.V1;
 public class PaymentsController : BaseApiController
 {
     private readonly IPaymentService _paymentService;
+    private readonly IStorageService? _storageService;
 
-    public PaymentsController(IPaymentService paymentService)
+    public PaymentsController(IPaymentService paymentService, IStorageService? storageService = null)
     {
         _paymentService = paymentService;
+        _storageService = storageService;
     }
 
     /// <summary>
@@ -65,19 +68,50 @@ public class PaymentsController : BaseApiController
     }
 
     /// <summary>
-    /// Nhà nhập khẩu B2B nộp Ủy nhiệm chi (Bank Slip / Swift MT103) đặt cọc 30% (EXP-60, EXP-61)
+    /// Tải file PDF/Ảnh chứng từ Ủy nhiệm chi T/T hoặc L/C lên kho lưu trữ (AWS S3 / Local Storage)
+    /// </summary>
+    [HttpPost("b2b/upload-slip-file")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UploadBankSlipFile(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<object>.Fail(StatusCodes.Status400BadRequest, "Vui lòng chọn file chứng từ hợp lệ."));
+        }
+
+        string fileUrl;
+        if (_storageService != null)
+        {
+            await using var stream = file.OpenReadStream();
+            var safeFileName = $"UNC_{DateTime.UtcNow:yyyyMMddHHmmss}_{Path.GetFileName(file.FileName)}";
+            fileUrl = await _storageService.UploadFileAsync(
+                stream,
+                safeFileName,
+                file.ContentType ?? "application/pdf",
+                "bank-slips",
+                cancellationToken);
+        }
+        else
+        {
+            fileUrl = $"/uploads/bank-slips/{file.FileName}";
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { fileUrl, fileName = file.FileName }, "Tải file chứng từ Ủy nhiệm chi lên hệ thống thành công."));
+    }
+
+    /// <summary>
+    /// Nhà nhập khẩu B2B nộp Ủy nhiệm chi (Bank Slip / Swift MT103) đặt cọc 30% hoặc tất toán 70% (EXP-60, EXP-61)
     /// </summary>
     [HttpPost("b2b/submit-slip")]
+    [HttpPost("b2b/upload-slip")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<B2BPaymentResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SubmitB2BPaymentSlip([FromBody] SubmitB2BPaymentSlipRequestDto request)
     {
         var userId = GetCurrentUserId();
-        if (userId <= 0)
-        {
-            return Unauthorized(ApiResponse<B2BPaymentResponseDto>.Fail(StatusCodes.Status401Unauthorized, "Token không hợp lệ."));
-        }
+        if (userId <= 0) return Unauthorized();
 
         try
         {
@@ -98,11 +132,14 @@ public class PaymentsController : BaseApiController
     /// Kế toán / Sales thẩm định đối soát Ủy nhiệm chi ngân hàng và duyệt cọc -> chuyển RFQ sang IN_PRODUCTION (EXP-62, EXP-63)
     /// </summary>
     [HttpPost("b2b/verify-deposit")]
-    [Authorize(Roles = "Admin_Super,Sales_Executive")]
+    [HttpPost("b2b/verify-slip")]
+    [Authorize(Roles = "Admin_Super")]
     [ProducesResponseType(typeof(ApiResponse<B2BPaymentResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyB2BPayment([FromBody] VerifyB2BPaymentRequestDto request)
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0) return Unauthorized();
+
         try
         {
             var result = await _paymentService.VerifyB2BPaymentAsync(userId, request);
@@ -122,8 +159,21 @@ public class PaymentsController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<List<B2BPaymentResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetB2BPaymentsByRfq(long rfqId)
     {
-        var result = await _paymentService.GetB2BPaymentsByRfqAsync(rfqId);
+        var result = await _paymentService.GetB2BPaymentsByRfqAsync(GetCurrentUserId(), rfqId);
         return Ok(ApiResponse<List<B2BPaymentResponseDto>>.Ok(result, "Lấy danh sách thanh toán RFQ thành công."));
+    }
+
+    /// <summary>
+    /// Admin / Kế toán lấy toàn bộ danh sách chứng từ Ủy nhiệm chi B2B để đối soát
+    /// </summary>
+    [HttpGet("b2b/all")]
+    [HttpGet("b2b/pending")]
+    [Authorize(Roles = "Admin_Super")]
+    [ProducesResponseType(typeof(ApiResponse<List<B2BPaymentResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllB2BPayments([FromQuery] string? status = null)
+    {
+        var result = await _paymentService.GetAllB2BPaymentsAsync(status);
+        return Ok(ApiResponse<List<B2BPaymentResponseDto>>.Ok(result, "Lấy danh sách chứng từ thanh toán B2B thành công."));
     }
 
     private long GetCurrentUserId()

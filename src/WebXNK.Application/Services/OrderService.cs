@@ -126,9 +126,13 @@ public class OrderService : IOrderService
         return order.ToResponseDto(products);
     }
 
-    public async Task<OrderResponseDto> GetOrderByIdAsync(long orderId, long? requestingUserId = null)
+    public async Task<OrderResponseDto> GetOrderByIdAsync(long orderId, long? requestingUserId = null, string? orderType = null)
     {
-        var order = await _context.Orders
+        var orderQuery = _context.Orders.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(orderType))
+            orderQuery = orderQuery.Where(order => order.OrderType == orderType);
+
+        var order = await orderQuery
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p.Translations)
@@ -152,13 +156,13 @@ public class OrderService : IOrderService
         return order.ToResponseDto(products);
     }
 
-    public async Task<List<OrderResponseDto>> GetUserOrdersAsync(long userId)
+    public async Task<List<OrderResponseDto>> GetUserOrdersAsync(long userId, string orderType)
     {
         var orders = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p.Translations)
-            .Where(o => o.UserId == userId)
+            .Where(o => o.UserId == userId && o.OrderType == orderType)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
@@ -172,8 +176,32 @@ public class OrderService : IOrderService
         }).ToList();
     }
 
+    public async Task<List<OrderResponseDto>> GetAllOrdersAsync()
+    {
+        var orders = await _context.Orders
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.Translations)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        return orders.Select(order =>
+        {
+            var products = order.OrderItems
+                .Select(item => item.Product)
+                .Where(product => product != null)
+                .ToDictionary(product => product.Id);
+            return order.ToResponseDto(products);
+        }).ToList();
+    }
+
     public async Task<OrderResponseDto> UpdateOrderStatusAsync(long orderId, string orderStatus, string? paymentStatus = null)
     {
+        var allowedStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "PENDING", "CONFIRMED", "PACKING", "SHIPPED", "DELIVERED", "CANCELLED" };
+        if (!allowedStatuses.Contains(orderStatus))
+            throw new ArgumentException("Order status is invalid.", nameof(orderStatus));
+
         var order = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)

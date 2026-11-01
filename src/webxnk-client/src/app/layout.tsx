@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import { CartProvider } from "@/context/CartContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -89,9 +90,11 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <CurrencyProvider>
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
+              <CartProvider>
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </CartProvider>
             </CurrencyProvider>
           </AuthProvider>
         </LanguageProvider>

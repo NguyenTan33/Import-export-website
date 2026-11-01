@@ -9,6 +9,7 @@ public interface IApplicationDbContext
     DbSet<Role> Roles { get; }
     DbSet<UserRole> UserRoles { get; }
     DbSet<Company> Companies { get; }
+    DbSet<CustomerAddress> CustomerAddresses { get; }
 
     DbSet<Category> Categories { get; }
     DbSet<CategoryTranslation> CategoryTranslations { get; }
@@ -27,6 +28,8 @@ public interface IApplicationDbContext
     DbSet<RfqItem> RfqItems { get; }
     DbSet<RfqNegotiationHistory> RfqNegotiationHistories { get; }
     DbSet<B2BPayment> B2BPayments { get; }
+    DbSet<SalesContract> SalesContracts { get; }
+    DbSet<RfqCounterOffer> RfqCounterOffers { get; }
 
     DbSet<Warehouse> Warehouses { get; }
     DbSet<InventoryLedger> InventoryLedger { get; }

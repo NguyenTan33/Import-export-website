@@ -89,6 +89,8 @@ public class RfqRequest : BaseEntity<long>, IAuditableEntity
     public ICollection<RfqNegotiationHistory> NegotiationHistories { get; set; } = new List<RfqNegotiationHistory>();
     public ICollection<B2BPayment> Payments { get; set; } = new List<B2BPayment>();
     public ICollection<ShipmentMilestone> ShipmentMilestones { get; set; } = new List<ShipmentMilestone>();
+    public ICollection<RfqCounterOffer> CounterOffers { get; set; } = new List<RfqCounterOffer>();
+    public SalesContract? SalesContract { get; set; }
 }
 
 public class RfqItem : BaseEntity<long>
@@ -134,3 +136,75 @@ public class B2BPayment : BaseEntity<long>
     public DateTime? VerifiedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public class SalesContract : BaseEntity<long>, IAuditableEntity
+{
+    public string ContractNumber { get; set; } = string.Empty; // e.g. "SC-2026-QTH-JP01"
+    public long RfqRequestId { get; set; }
+    public RfqRequest RfqRequest { get; set; } = null!;
+
+    // Seller Information (Quang Tan Hoang Co., Ltd)
+    public string SellerCompanyName { get; set; } = "CÔNG TY TNHH XUẤT NHẬP KHẨU QUANG TẤN HOÀNG";
+    public string SellerTaxCode { get; set; } = "0318992145";
+    public string SellerAddress { get; set; } = "Số 88, Đường Số 7, KCN Sóng Thần 1, Dĩ An, Bình Dương, Việt Nam";
+    public string SellerRepresentative { get; set; } = "Nguyễn Văn A";
+    public string SellerTitle { get; set; } = "Giám Đốc Điều Hành (Managing Director)";
+
+    // Buyer Information
+    public string BuyerCompanyName { get; set; } = string.Empty;
+    public string BuyerTaxCode { get; set; } = string.Empty;
+    public string BuyerAddress { get; set; } = string.Empty;
+    public string BuyerRepresentative { get; set; } = string.Empty;
+    public string BuyerTitle { get; set; } = string.Empty;
+
+    // Commercial Terms (Incoterms 2020)
+    public string IncotermCode { get; set; } = "FOB";
+    public string PortOfLoading { get; set; } = "Tân Cảng Cát Lái, TP. Hồ Chí Minh (VN)";
+    public string PortOfDischarge { get; set; } = string.Empty;
+    public string PaymentTerms { get; set; } = "30% T/T Deposit upon Contract Signing, 70% T/T against Copy of B/L";
+    public DateOnly? TargetDeliveryDate { get; set; }
+    public string Currency { get; set; } = "USD";
+    public decimal TotalAmountUsd { get; set; }
+
+    // Status: DRAFT, SELLER_SIGNED, BUYER_SIGNED, LEGALLY_BINDING, CANCELLED
+    public string Status { get; set; } = "DRAFT";
+
+    // Digital Signatures
+    public string? SellerSignatureData { get; set; } // Base64 PNG image
+    public DateTime? SellerSignedAt { get; set; }
+    public string? SellerSignedBy { get; set; }
+    public string? SellerStampData { get; set; } // Base64 PNG company seal
+
+    public string? BuyerSignatureData { get; set; } // Base64 PNG image
+    public DateTime? BuyerSignedAt { get; set; }
+    public string? BuyerSignedBy { get; set; }
+
+    public string? DigitalSignatureHash { get; set; } // SHA-256 integrity hash
+    public string? ContractPdfUrl { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+public class RfqCounterOffer : BaseEntity<long>
+{
+    public long RfqRequestId { get; set; }
+    public RfqRequest RfqRequest { get; set; } = null!;
+
+    public int RevisionNumber { get; set; } // 1, 2, 3...
+    public string SenderRole { get; set; } = "BUYER"; // "BUYER" or "SELLER"
+    public long? SenderUserId { get; set; }
+    public string SenderName { get; set; } = string.Empty;
+
+    public decimal? ProposedUnitPriceUsd { get; set; }
+    public decimal? ProposedTotalAmountUsd { get; set; }
+    public string? ProposedIncotermCode { get; set; }
+    public string? ProposedPaymentTerms { get; set; }
+    public string Note { get; set; } = string.Empty;
+
+    public DateTime? ExpiresAt { get; set; }
+    public string Status { get; set; } = "PENDING"; // PENDING, ACCEPTED, REJECTED, SUPERSEDED
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+

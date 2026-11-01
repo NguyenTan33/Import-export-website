@@ -1,173 +1,105 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Warehouse, InventoryBalance } from "@/types";
-import { Warehouse as WhIcon, Clock, CheckCircle, RefreshCw } from "lucide-react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
+import { Warehouse as WarehouseIcon, RefreshCw } from "lucide-react";
+import { Warehouse } from "@/types";
 import { inventoryApi } from "@/services/api";
+import { Pagination } from "@/components/common/Pagination";
+
+type ProductStock = Awaited<ReturnType<typeof inventoryApi.getAllStockSummaries>>[number];
 
 export const WarehouseInventoryMonitor: React.FC = () => {
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([
-    {
-      id: 1,
-      code: "WH-BINHDUONG",
-      name: "Kho Tổng Sản Xuất & Lưu Trữ Bình Dương",
-      warehouseType: "FACTORY_CENTRAL",
-      address: "KCN VSIP 1, TP. Thuận An, Tỉnh Bình Dương",
-      isActive: true,
-    },
-    {
-      id: 2,
-      code: "WH-CATLAI",
-      name: "Kho Cảng Cát Lái (Kho Ngoại Quan Xuất Khẩu)",
-      warehouseType: "PORT_BONDED",
-      address: "Cổng B Cảng Tân Cảng Cát Lái, Đ. Nguyễn Thị Định, TP. Thủ Đức, TP. HCM",
-      isActive: true,
-    },
-  ]);
-
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [stocks, setStocks] = useState<ProductStock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [balances, setBalances] = useState<InventoryBalance[]>([
-    {
-      warehouseId: 1,
-      warehouseCode: "WH-BINHDUONG",
-      warehouseName: "Kho Tổng Bình Dương",
-      productId: 1,
-      productSku: "SHOES-SNK-V1",
-      availableQuantity: 3800,
-      reservedQuantity: 1200, // Đang giữ chỗ cho RFQ Nhật Bản
-    },
-    {
-      warehouseId: 1,
-      warehouseCode: "WH-BINHDUONG",
-      warehouseName: "Kho Tổng Bình Dương",
-      productId: 2,
-      productSku: "CHAR-COCO-BBQ",
-      availableQuantity: 10000,
-      reservedQuantity: 5000,
-    },
-    {
-      warehouseId: 2,
-      warehouseCode: "WH-CATLAI",
-      warehouseName: "Kho Cát Lái",
-      productId: 4,
-      productSku: "AGRI-CASHEW-W320",
-      availableQuantity: 2500,
-      reservedQuantity: 0,
-    },
-    {
-      warehouseId: 2,
-      warehouseCode: "WH-CATLAI",
-      warehouseName: "Kho Cát Lái",
-      productId: 5,
-      productSku: "TAPE-OPP-48X100",
-      availableQuantity: 8560,
-      reservedQuantity: 1440,
-    },
-  ]);
+  const [stockPage, setStockPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(10);
 
-  const refreshWarehouseData = async () => {
+  const paginatedStocks = useMemo(() => {
+    const start = (stockPage - 1) * stockPageSize;
+    return stocks.slice(start, start + stockPageSize);
+  }, [stocks, stockPage, stockPageSize]);
+
+  const refresh = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const live = await inventoryApi.getWarehouses();
-      if (live && live.length > 0) {
-        setWarehouses(live);
-      }
-      const liveStock = await inventoryApi.getStockBalance(1);
-      if (liveStock && liveStock.length > 0) {
-        setBalances(liveStock);
-      }
+      const [warehouseData, stockData] = await Promise.all([
+        inventoryApi.getWarehouses(),
+        inventoryApi.getAllStockSummaries(),
+      ]);
+      setWarehouses(warehouseData);
+      setStocks(stockData);
     } catch {
-      // Retain mock data as fallback
+      setError("Không thể tải dữ liệu kho từ máy chủ.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    refreshWarehouseData();
   }, []);
 
+  useEffect(() => { void refresh(); }, [refresh]);
+
   return (
-    <div className="border border-black bg-white p-6 space-y-6">
-      <div className="border-b border-black pb-4 flex justify-between items-end">
+    <div className="space-y-6 border border-black bg-white p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-black pb-4">
         <div>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-            MULTI-WAREHOUSE INVENTORY & 30-MIN STOCK RESERVATIONS (EXP-77, EXP-78, EXP-79)
-          </span>
-          <h2 className="text-xl font-black uppercase tracking-tight text-black flex items-center gap-2">
-            <WhIcon className="w-5 h-5" />
-            Giám sát tồn kho thực tế & Phiên giữ chỗ tự động
+          <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">TỒN KHO THỰC TẾ</span>
+          <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-black">
+            <WarehouseIcon className="h-5 w-5" /> Giám sát tồn kho và kho hàng
           </h2>
         </div>
-        <button
-          onClick={refreshWarehouseData}
-          disabled={isLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-black text-xs font-mono font-bold bg-white hover:bg-neutral-100 transition-colors shadow-sm disabled:opacity-50"
-          title="Đồng bộ danh sách kho bãi từ Backend API"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-[#0E4B94]" : ""}`} />
-          <span>{isLoading ? "Đang tải..." : "Đồng bộ Kho (Live Sync)"}</span>
+        <button onClick={() => void refresh()} disabled={isLoading} className="flex items-center gap-2 border border-black px-3 py-2 text-xs font-bold disabled:opacity-50">
+          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} /> Làm mới
         </button>
       </div>
+      {error && <p role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      {/* 2 Warehouses Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {warehouses.map((wh) => (
-          <div key={wh.id} className="border border-black p-4 bg-neutral-50">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono font-bold bg-black text-white px-2 py-0.5">
-                  {wh.code}
-                </span>
-                <h3 className="mt-2 font-bold text-black text-sm">{wh.name}</h3>
-                <p className="text-xs text-neutral-600 mt-1">{wh.address}</p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-black">
-                <CheckCircle className="w-3.5 h-3.5" />
-                HOẠT ĐỘNG
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold">Kho hàng ({warehouses.length})</h3>
+        {warehouses.length ? <div className="grid gap-3 md:grid-cols-2">
+          {warehouses.map((warehouse) => <article key={warehouse.id} className="border border-neutral-300 p-4">
+            <div className="font-mono text-xs font-bold">{warehouse.code}</div>
+            <h4 className="mt-1 font-semibold">{warehouse.name}</h4>
+            <p className="mt-1 text-xs text-neutral-600">{warehouse.address}</p>
+          </article>)}
+        </div> : <p className="border border-dashed border-neutral-300 p-4 text-sm text-neutral-500">Chưa có kho hàng trong CSDL.</p>}
+      </section>
 
-      {/* Stock Balance Table */}
-      <div className="border border-black overflow-x-auto">
-        <table className="w-full text-left text-xs font-mono">
-          <thead className="bg-black text-white uppercase text-[11px]">
-            <tr>
-              <th className="p-3">Kho hàng</th>
-              <th className="p-3">Mã SKU</th>
-              <th className="p-3 text-right">Khả dụng (Available)</th>
-              <th className="p-3 text-right">Giữ chỗ 30p (Reserved)</th>
-              <th className="p-3 text-right">Tổng tồn sổ cái</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-black/10">
-            {balances.map((b, idx) => (
-              <tr key={idx} className="hover:bg-neutral-50 transition-colors">
-                <td className="p-3 font-semibold text-black">{b.warehouseName}</td>
-                <td className="p-3 font-bold">{b.productSku}</td>
-                <td className="p-3 text-right font-black text-black">
-                  {b.availableQuantity.toLocaleString("vi-VN")} sp
-                </td>
-                <td className="p-3 text-right font-semibold text-neutral-700 flex items-center justify-end gap-1">
-                  <Clock className="w-3 h-3 text-black" />
-                  <span>{b.reservedQuantity.toLocaleString("vi-VN")} sp</span>
-                </td>
-                <td className="p-3 text-right font-black text-black">
-                  {(b.availableQuantity + b.reservedQuantity).toLocaleString("vi-VN")} sp
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="p-3 border border-black bg-neutral-50 text-[11px] font-mono text-neutral-700">
-        * <strong>Quy tắc hệ thống (EXP-79)</strong>: Đơn hàng hoặc RFQ đang đàm phán sẽ tự động giữ chỗ (Stock Reservation) trong vòng 30 phút. Nếu quá hạn mà không thanh toán hoặc xác nhận, Background Worker sẽ tự động hoàn trả số lượng về quỹ tồn kho khả dụng.
-      </div>
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold">Tồn kho theo sản phẩm ({stocks.length})</h3>
+        <div className="overflow-x-auto border border-neutral-300">
+          <table className="w-full min-w-[650px] text-left text-xs">
+            <thead className="bg-neutral-900 text-white"><tr>
+              <th className="p-3">Sản phẩm / SKU</th><th className="p-3 text-right">Tồn vật lý</th><th className="p-3 text-right">Đang giữ</th><th className="p-3 text-right">Khả dụng</th><th className="p-3">Phân bổ theo kho</th>
+            </tr></thead>
+            <tbody className="divide-y divide-neutral-200">
+              {paginatedStocks.map((stock) => <tr key={stock.productId}>
+                <td className="p-3"><span className="font-semibold">{stock.productName}</span><span className="block text-neutral-500">{stock.baseSku}</span></td>
+                <td className="p-3 text-right">{stock.totalPhysicalStock.toLocaleString("vi-VN")}</td>
+                <td className="p-3 text-right">{(stock.totalPhysicalStock - stock.availableStock).toLocaleString("vi-VN")}</td>
+                <td className="p-3 text-right font-bold">{stock.availableStock.toLocaleString("vi-VN")}</td>
+                <td className="p-3">{stock.warehouseBreakdown.map((warehouse) => `${warehouse.warehouseName}: ${warehouse.currentStock.toLocaleString("vi-VN")}`).join(" · ") || "—"}</td>
+              </tr>)}
+              {!stocks.length && <tr><td colSpan={5} className="p-6 text-center text-neutral-500">Chưa có số liệu tồn kho trong CSDL.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {stocks.length > 0 && (
+          <Pagination
+            currentPage={stockPage}
+            pageSize={stockPageSize}
+            totalItems={stocks.length}
+            onPageChange={setStockPage}
+            onPageSizeChange={(newSize) => {
+              setStockPageSize(newSize);
+              setStockPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        )}
+      </section>
     </div>
   );
 };

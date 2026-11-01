@@ -106,6 +106,44 @@ public class InventoryService : IInventoryService
         };
     }
 
+    public async Task<List<StockSummaryDto>> GetAllStockSummariesAsync()
+    {
+        var products = await _context.Products.AsNoTracking()
+            .Include(p => p.Translations).ToListAsync();
+        var warehouses = await GetWarehousesAsync();
+        var ledger = await _context.InventoryLedger.AsNoTracking()
+            .GroupBy(x => new { x.ProductId, x.WarehouseId })
+            .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, Quantity = g.Sum(x => x.QuantityChange) })
+            .ToListAsync();
+        var reservations = await _context.StockReservations.AsNoTracking()
+            .Where(x => !x.IsReleased && x.ExpiresAt > DateTime.UtcNow)
+            .GroupBy(x => x.ProductId).Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToListAsync();
+
+        return products.Select(product =>
+        {
+            var breakdown = warehouses.Select(warehouse => new WarehouseStockDto
+            {
+                WarehouseId = warehouse.Id,
+                WarehouseCode = warehouse.Code,
+                WarehouseName = warehouse.Name,
+                CurrentStock = Math.Max(0, ledger.FirstOrDefault(x => x.ProductId == product.Id && x.WarehouseId == warehouse.Id)?.Quantity ?? 0)
+            }).ToList();
+            var physical = breakdown.Sum(x => x.CurrentStock);
+            var reserved = reservations.FirstOrDefault(x => x.ProductId == product.Id)?.Quantity ?? 0;
+            return new StockSummaryDto
+            {
+                ProductId = product.Id,
+                BaseSku = product.BaseSku,
+                ProductName = product.Translations.FirstOrDefault(x => x.LanguageCode == "vi")?.Name ?? product.BaseSku,
+                TotalPhysicalStock = physical,
+                TotalReservedStock = reserved,
+                AvailableStock = Math.Max(0, physical - reserved),
+                WarehouseBreakdown = breakdown
+            };
+        }).ToList();
+    }
+
     public async Task<bool> RecordTransactionAsync(RecordStockTransactionRequestDto request, long createdByUserId)
     {
         if (request.QuantityChange == 0)

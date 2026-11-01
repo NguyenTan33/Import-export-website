@@ -11,6 +11,9 @@ public class ProductSummaryDto
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public decimal DefaultRetailPriceUsd { get; set; }
+    public bool IsActive { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
     public decimal CbmPerCarton { get; set; }
     public decimal GrossWeightKg { get; set; }
     public int PcsPerCarton { get; set; }
@@ -29,10 +32,22 @@ public class ProductDetailDto
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
     public decimal DefaultRetailPriceUsd { get; set; }
+    public bool IsActive { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
+    public List<ProductTranslationDto> Translations { get; set; } = new();
     public string? SpecificationsJson { get; set; }
 
     public ExportPackagingDto? ExportPackaging { get; set; }
     public List<PriceTierDto> PriceTiers { get; set; } = new();
+}
+
+public class ProductTranslationDto
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
 }
 
 public class ExportPackagingDto
@@ -68,6 +83,7 @@ public class ProductFilterRequestDto
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
     public string LanguageCode { get; set; } = "vi"; // 'vi' hoặc 'en'
+    public bool IncludeInactive { get; set; }
 }
 
 public class PaginatedResult<T>
@@ -99,6 +115,9 @@ public class CreateProductRequestDto
     public string HsCode { get; set; } = string.Empty;
     public string CountryOfOrigin { get; set; } = "VNM";
     public decimal DefaultRetailPriceUsd { get; set; }
+    public string? ImageUrl { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
+    public List<ProductTranslationWriteDto> Translations { get; set; } = new();
     public string? SpecificationsJson { get; set; }
 
     // Bản dịch Tiếng Việt
@@ -123,10 +142,29 @@ public class CreateProductRequestDto
     public List<CreatePriceTierDto> PriceTiers { get; set; } = new();
 }
 
+public class ProductTranslationWriteDto
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
+}
+
+public class UpdateProductRequestDto : CreateProductRequestDto
+{
+    public bool IsActive { get; set; } = true;
+}
+
 public class CreatePriceTierDto
 {
     public int MinQuantity { get; set; }
     public int? MaxQuantity { get; set; }
     public decimal UnitPriceUsd { get; set; }
     public decimal DiscountPercentage { get; set; }
+}
+
+public class UpdateProductImageRequestDto
+{
+    public string ImageUrl { get; set; } = string.Empty;
 }

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Globe,
   ShoppingBag,
@@ -22,6 +23,7 @@ import {
 import { useCurrency, Currency, CURRENCY_CONFIGS } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 
 interface NavbarProps {
@@ -29,14 +31,39 @@ interface NavbarProps {
   onOpenCart?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => {
+export const Navbar: React.FC<NavbarProps> = ({ cartCount, onOpenCart }) => {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, isLiveRate } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
   const { user, isAuthenticated, logout } = useAuth();
+  const { totalItemsCount, setIsCartOpen } = useCart();
+  const canAccessAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+  const isB2c = user?.role === "B2C_CUSTOMER";
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/" || pathname?.startsWith("/product");
+    return pathname?.startsWith(href);
+  };
+
+  const navLinkClass = (href: string) =>
+    `px-2.5 xl:px-3 py-1.5 rounded transition-colors flex items-center gap-1 whitespace-nowrap ${
+      isActive(href)
+        ? "bg-[#0E4B94]/10 text-[#0E4B94] font-bold"
+        : "text-black hover:bg-black/5 font-medium"
+    }`;
+
+  const effectiveCartCount = cartCount !== undefined ? cartCount : totalItemsCount;
+  const handleCartClick = () => {
+    if (onOpenCart) {
+      onOpenCart();
+    } else {
+      setIsCartOpen(true);
+    }
+  };
 
   const toggleLanguage = () => {
     setLanguage(language === "vi" ? "en" : "vi");
@@ -72,47 +99,36 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
             </Link>
 
             {/* Desktop Navigation Links - Single-line whitespace-nowrap */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs xl:text-sm font-medium text-black whitespace-nowrap">
-              <Link
-                href="/"
-                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors whitespace-nowrap"
-              >
-                {t("nav.catalog")}
+            <nav className="hidden lg:flex items-center gap-1 text-xs xl:text-sm whitespace-nowrap">
+              <Link href="/" className={navLinkClass("/")}>
+                <span>{t("nav.catalog")}</span>
               </Link>
-              <Link
-                href="/portal"
-                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 whitespace-nowrap"
-              >
-                <FileText className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
-                <span>{t("nav.portal")}</span>
-              </Link>
-              <Link
-                href="/tracking"
-                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 font-semibold text-[#0E4B94] whitespace-nowrap"
-              >
-                <Ship className="w-3.5 h-3.5 shrink-0" />
+              {!isB2c && (
+                <Link href="/portal" className={navLinkClass("/portal")}>
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive("/portal") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
+                  <span>{t("nav.portal")}</span>
+                </Link>
+              )}
+              <Link href="/tracking" className={navLinkClass("/tracking")}>
+                <Ship className={`w-3.5 h-3.5 shrink-0 ${isActive("/tracking") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
                 <span>{t("nav.tracking")}</span>
               </Link>
-              <Link
-                href="/cbm-calculator"
-                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors flex items-center gap-1 whitespace-nowrap"
-              >
-                <Box className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+              <Link href="/cbm-calculator" className={navLinkClass("/cbm-calculator")}>
+                <Box className={`w-3.5 h-3.5 shrink-0 ${isActive("/cbm-calculator") ? "text-[#0E4B94]" : "text-neutral-600"}`} />
                 <span>{t("nav.cbm")}</span>
               </Link>
-              <Link
-                href="/admin"
-                className="px-2.5 xl:px-3 py-1.5 rounded hover:bg-black/5 transition-colors whitespace-nowrap"
-              >
-                {t("nav.admin")}
-              </Link>
+              {canAccessAdmin && (
+                <Link href="/admin" className={navLinkClass("/admin")}>
+                  <span>{t("nav.admin")}</span>
+                </Link>
+              )}
             </nav>
           </div>
 
           {/* Right Action Controls - Compact & Symmetrical */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
             {/* Multi-Currency Dropdown */}
-            <div className="relative inline-flex items-center shrink-0">
+            <div className="relative inline-flex items-center shrink-0" title={isLiveRate ? "Live FX Exchange Rates Synced" : "Standard FX Exchange Rates"}>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value as Currency)}
@@ -193,7 +209,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                           <span>{t("nav.myRfqs")}</span>
                         </Link>
                       )}
-                      {user.role === "SUPER_ADMIN" && (
+                      {canAccessAdmin && (
                         <Link
                           href="/admin"
                           onClick={() => setUserDropdownOpen(false)}
@@ -240,26 +256,28 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
 
             {/* Cart Icon */}
             <button
-              onClick={onOpenCart}
+              onClick={handleCartClick}
               className="relative flex items-center justify-center p-2 rounded border border-black/20 hover:border-black text-black transition-colors shrink-0"
               aria-label={t("nav.cart")}
             >
               <ShoppingBag className="w-4 h-4" />
-              {cartCount > 0 && (
+              {effectiveCartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9252C] text-[10px] font-bold text-white">
-                  {cartCount}
+                  {effectiveCartCount}
                 </span>
               )}
             </button>
 
             {/* B2B Buyer Quick Quote CTA */}
-            <Link
-              href="/portal"
-              className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm shrink-0 whitespace-nowrap"
-            >
-              <span>{t("nav.rfqQuoteBtn")}</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
+            {!isB2c && (
+              <Link
+                href="/portal"
+                className="hidden sm:inline-flex items-center gap-1.5 bg-[#0E4B94] text-white text-xs uppercase tracking-wider font-bold px-3 py-1.5 hover:bg-[#0a376d] transition-colors rounded shadow-sm shrink-0 whitespace-nowrap"
+              >
+                <span>{t("nav.rfqQuoteBtn")}</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -339,14 +357,16 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                 <Package className="w-4 h-4 text-[#0E4B94]" />
                 {t("nav.catalog")}
               </Link>
-              <Link
-                href="/portal"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-[#0E4B94]" />
-                {t("nav.portal")}
-              </Link>
+              {!isB2c && (
+                <Link
+                  href="/portal"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <FileText className="w-4 h-4 text-[#0E4B94]" />
+                  {t("nav.portal")}
+                </Link>
+              )}
               <Link
                 href="/tracking"
                 onClick={() => setMobileMenuOpen(false)}
@@ -363,14 +383,16 @@ export const Navbar: React.FC<NavbarProps> = ({ cartCount = 0, onOpenCart }) => 
                 <Box className="w-4 h-4 text-[#0E4B94]" />
                 {t("nav.cbm")}
               </Link>
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
-              >
-                <Shield className="w-4 h-4 text-[#C9252C]" />
-                {t("nav.admin")}
-              </Link>
+              {canAccessAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <Shield className="w-4 h-4 text-[#C9252C]" />
+                  {t("nav.admin")}
+                </Link>
+              )}
               {isAuthenticated && (
                 <Link
                   href="/profile"

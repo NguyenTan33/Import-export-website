@@ -7,7 +7,6 @@ using WebXNK.Application.Interfaces;
 
 namespace WebXNK.Api.Controllers.V1;
 
-[Authorize]
 public class RfqController : BaseApiController
 {
     private readonly IRfqService _rfqService;
@@ -26,6 +25,7 @@ public class RfqController : BaseApiController
     public async Task<IActionResult> CreateRfq([FromBody] CreateRfqRequestDto request)
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0) return Unauthorized();
         try
         {
             var result = await _rfqService.CreateRfqAsync(userId, request);
@@ -58,6 +58,7 @@ public class RfqController : BaseApiController
     public async Task<IActionResult> GetRfqById(long id)
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0) return Unauthorized();
         try
         {
             var result = await _rfqService.GetRfqByIdAsync(id, userId);
@@ -76,11 +77,13 @@ public class RfqController : BaseApiController
     /// <summary>
     /// Lấy danh sách RFQ của doanh nghiệp mà người dùng hiện tại đang đăng nhập (EXP-45, EXP-50)
     /// </summary>
+    [Authorize]
     [HttpGet("my-rfqs")]
     [ProducesResponseType(typeof(ApiResponse<List<RfqSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyRfqs()
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0) return Unauthorized();
         var result = await _rfqService.GetMyRfqsAsync(userId);
         return Ok(ApiResponse<List<RfqSummaryDto>>.Ok(result, "Lấy danh sách RFQ doanh nghiệp của bạn thành công."));
     }
@@ -100,7 +103,8 @@ public class RfqController : BaseApiController
     /// Admin/Sales lấy toàn bộ danh sách RFQ trong hệ thống kèm lọc theo trạng thái
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "Admin_Super,Sales_Executive")]
+    [HttpGet("admin/all")]
+    [Authorize(Roles = "Admin_Super")]
     [ProducesResponseType(typeof(ApiResponse<List<RfqSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllRfqs([FromQuery] string? status)
     {
@@ -112,12 +116,14 @@ public class RfqController : BaseApiController
     /// Sales/Admin gửi Báo giá chính thức kèm Incoterms, cước biển và thời hạn hiệu lực giá (EXP-50 đến EXP-52)
     /// </summary>
     [HttpPost("{id:long}/quote")]
-    [Authorize(Roles = "Admin_Super,Sales_Executive")]
+    [HttpPost("{id:long}/official-quotation")]
+    [Authorize(Roles = "Admin_Super")]
     [ProducesResponseType(typeof(ApiResponse<RfqDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SubmitQuotation(long id, [FromBody] SubmitQuotationDto request)
     {
         var userId = GetCurrentUserId();
+        if (userId <= 0) userId = 1;
         try
         {
             var result = await _rfqService.SubmitOfficialQuotationAsync(userId, id, request);

@@ -61,6 +61,7 @@ public class B2BPaymentResponseDto
     public long Id { get; set; }
     public long RfqId { get; set; }
     public string RfqNumber { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
     public string PaymentStage { get; set; } = string.Empty;
     public string PaymentMethod { get; set; } = string.Empty;
     public decimal AmountUsd { get; set; }

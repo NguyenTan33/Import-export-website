@@ -3,13 +3,18 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Product } from "@/types";
 import { TierPriceTable } from "@/components/store/TierPriceTable";
 import { catalogApi } from "@/services/api";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { useProductImage, getDefaultProductImageUrl } from "@/utils/productImages";
+import { ProductImageEditModal } from "@/components/admin/ProductImageEditModal";
+import { LandedCostCalculator } from "@/components/logistics/LandedCostCalculator";
+import { CbmVisualizer } from "@/components/portal/CbmVisualizer";
+import { getTranslation } from "@/lib/utils";
 import {
-  Box,
   Layers,
   ShoppingBag,
   ArrowRight,
@@ -19,348 +24,62 @@ import {
   FileCheck,
   Share2,
   ChevronRight,
+  Camera,
+  Calculator,
+  Box,
 } from "lucide-react";
-
-// Mock 6 core products for fallback with both VI and EN
-const FALLBACK_PRODUCTS: Product[] = [
-  {
-    id: 1,
-    categoryId: 1,
-    baseSku: "SHOES-SNK-V1",
-    hsCode: "6404.11.00",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 25.0,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Chất liệu thân (Upper)": "Vải Canvas dệt mật độ cao chống bám bẩn",
-        "Đế ngoài (Outsole)": "Cao su tự nhiên lưu hóa chống trơn trượt đạt chuẩn ASTM",
-        "Tiêu chuẩn xuất khẩu": "CE, REACH (Châu Âu), CPSIA (Hoa Kỳ)",
-        "Quy cách đóng gói": "1 đôi/hộp quà tặng, 12 hộp/thùng carton 5 lớp",
-        "Kích cỡ (Sizes)": "EU 38 - 44 / US 6 - 11",
-        "Màu sắc": "Trắng / Đen xuất khẩu",
-      },
-      en: {
-        "Upper Material": "High-density stain-resistant Canvas fabric",
-        "Outsole": "Vulcanized natural rubber ASTM anti-slip compliant",
-        "Export Standards": "CE, REACH (Europe), CPSIA (USA)",
-        "Packaging Specification": "1 pair/inner box, 12 boxes/5-ply master carton",
-        "Sizes": "EU 38 - 44 / US 6 - 11",
-        "Colors": "Export White / Black",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Giày thể thao Sneaker xuất khẩu đế đúc cao cấp",
-        shortDescription: "Giày vải canvas đế cao su lưu hóa tiêu chuẩn xuất khẩu EU/Mỹ, đóng gói 12 đôi/thùng.",
-      },
-      {
-        languageCode: "en",
-        name: "Premium Vulcanized Canvas Sneakers",
-        shortDescription: "Export-grade vulcanized rubber canvas sneakers meeting EU/US standards. 12 pairs per carton.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 60,
-      cartonWidthCm: 40,
-      cartonHeightCm: 35,
-      netWeightKg: 9.6,
-      grossWeightKg: 11.2,
-      pcsPerCarton: 12,
-    },
-    priceTiers: [
-      { minQuantity: 120, maxQuantity: 499, unitPriceUsd: 22.0, discountPercentage: 12 },
-      { minQuantity: 500, maxQuantity: 1999, unitPriceUsd: 19.5, discountPercentage: 22 },
-      { minQuantity: 2000, maxQuantity: null, unitPriceUsd: 17.0, discountPercentage: 32 },
-    ],
-  },
-  {
-    id: 2,
-    categoryId: 2,
-    baseSku: "CHAR-COCO-BBQ",
-    hsCode: "4402.90.10",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 1.2,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Hàm lượng Carbon cố định": "75% - 80%",
-        "Nhiệt lượng": "7200 - 7500 kcal/kg",
-        "Độ ẩm (Moisture)": "< 5%",
-        "Độ tro (Ash content)": "< 3%",
-        "Thời gian cháy liên tục": "3.5 - 4.5 giờ không mùi, không tia lửa",
-      },
-      en: {
-        "Fixed Carbon Content": "75% - 80%",
-        "Calorific Value": "7200 - 7500 kcal/kg",
-        "Moisture Content": "< 5%",
-        "Ash Content": "< 3%",
-        "Burn Time": "3.5 - 4.5 hours smokeless, odorless, spark-free",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Than gáo dừa nén lục giác không khói BBQ xuất khẩu",
-        shortDescription: "Than sinh thái không mùi, không tia lửa, thời gian cháy 4 giờ, xuất khẩu Trung Đông & Nhật.",
-      },
-      {
-        languageCode: "en",
-        name: "Hexagonal Coconut Shell Smokeless BBQ Charcoal",
-        shortDescription: "Eco-friendly, odorless briquettes with 4 hours burn time, exported to Middle East & Japan.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 40,
-      cartonWidthCm: 30,
-      cartonHeightCm: 25,
-      netWeightKg: 10.0,
-      grossWeightKg: 10.6,
-      pcsPerCarton: 10,
-    },
-    priceTiers: [
-      { minQuantity: 500, maxQuantity: 1999, unitPriceUsd: 0.95, discountPercentage: 20 },
-      { minQuantity: 2000, maxQuantity: null, unitPriceUsd: 0.85, discountPercentage: 29 },
-    ],
-  },
-  {
-    id: 3,
-    categoryId: 3,
-    baseSku: "BROOM-EUC-120",
-    hsCode: "4417.00.10",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 0.65,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Chủng loại gỗ": "Bạch đàn rừng trồng tự nhiên (Eucalyptus)",
-        "Chiều dài tiêu chuẩn": "120 cm (± 0.5 cm)",
-        "Đường kính thân": "2.2 cm",
-        "Xử lý bề mặt": "Sấy hơi nước chống mốc, bọc màng PVC hoa văn",
-        "Phụ kiện đầu chổi": "Ren xoáy chuẩn Italy + Nắp móc treo nhựa",
-      },
-      en: {
-        "Wood Species": "Plantation Eucalyptus Hardwood",
-        "Standard Length": "120 cm (± 0.5 cm)",
-        "Diameter": "2.2 cm",
-        "Surface Treatment": "Kiln-dried anti-mildew, PVC film wrapped",
-        "Cap & Thread": "Standard Italian screw thread + hanging plastic cap",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Cán chổi gỗ bạch đàn 120cm bọc màng PVC xuất khẩu",
-        shortDescription: "Tiện tròn mịn, sấy chống mốc mối mọt, bọc màng PVC vân gỗ kèm móc treo nhựa.",
-      },
-      {
-        languageCode: "en",
-        name: "Eucalyptus Wooden Broom Handle 120cm PVC Coated",
-        shortDescription: "Kiln-dried anti-mildew hardwood handle with woodgrain shrink PVC sleeve and hanging cap.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 122,
-      cartonWidthCm: 25,
-      cartonHeightCm: 25,
-      netWeightKg: 22.0,
-      grossWeightKg: 23.5,
-      pcsPerCarton: 50,
-    },
-    priceTiers: [
-      { minQuantity: 1000, maxQuantity: 4999, unitPriceUsd: 0.5, discountPercentage: 23 },
-      { minQuantity: 5000, maxQuantity: null, unitPriceUsd: 0.42, discountPercentage: 35 },
-    ],
-  },
-  {
-    id: 4,
-    categoryId: 4,
-    baseSku: "AGRI-CASHEW-W320",
-    hsCode: "0801.32.00",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 8.5,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Cấp chất lượng": "White Whole 320 hạt/pound (Grade W320)",
-        "Vùng nguyên liệu": "Bình Phước, Việt Nam",
-        "Độ ẩm (Moisture)": "< 5.0%",
-        "Tiêu chuẩn an toàn": "FDA, HACCP, ISO 22000",
-        "Quy cách bao gói": "Túi chân không PE/Alu 25 lbs (11.34 kg)",
-      },
-      en: {
-        "Quality Grade": "White Whole 320 count/pound (Grade W320)",
-        "Origin Region": "Binh Phuoc, Vietnam",
-        "Moisture Content": "< 5.0%",
-        "Food Safety Standards": "FDA Registered, HACCP, ISO 22000",
-        "Packaging": "Vacuum packed PE/Alu pouch 25 lbs (11.34 kg)",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Hạt điều nhân trắng xuất khẩu Grade W320",
-        shortDescription: "Hạt điều Bình Phước chất lượng cao đóng túi hút chân không 25lbs/thùng xuất khẩu.",
-      },
-      {
-        languageCode: "en",
-        name: "Export Grade W320 White Whole Cashew Kernels",
-        shortDescription: "Premium Binh Duong whole cashew kernels vacuum packed in 25lbs master cartons.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 48,
-      cartonWidthCm: 35,
-      cartonHeightCm: 28,
-      netWeightKg: 22.68,
-      grossWeightKg: 24.2,
-      pcsPerCarton: 2,
-    },
-    priceTiers: [
-      { minQuantity: 100, maxQuantity: 499, unitPriceUsd: 7.8, discountPercentage: 8 },
-      { minQuantity: 500, maxQuantity: null, unitPriceUsd: 7.2, discountPercentage: 15 },
-    ],
-  },
-  {
-    id: 5,
-    categoryId: 5,
-    baseSku: "TAPE-OPP-48X100",
-    hsCode: "3919.10.10",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 0.85,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Bề rộng băng keo": "48 mm (2 inches)",
-        "Chiều dài cuộn": "100 yards (~91.4 mét)",
-        "Độ dày màng + keo": "50 micron",
-        "Hệ keo dính": "Water-based Acrylic độ bám dính cực mạnh",
-        "Quy cách đóng thùng": "6 cuộn/cây, 12 cây/thùng (72 cuộn/thùng)",
-      },
-      en: {
-        "Tape Width": "48 mm (2 inches)",
-        "Roll Length": "100 yards (~91.4 meters)",
-        "Total Thickness": "50 microns",
-        "Adhesive System": "Heavy-duty Water-based Acrylic adhesive",
-        "Export Packing": "6 rolls/sleeve, 12 sleeves/carton (72 rolls)",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Băng keo trong OPP dán thùng 48mm x 100 yards",
-        shortDescription: "Băng dính đóng gói công nghiệp độ dính cao 50 mic, quy cách 72 cuộn/thùng.",
-      },
-      {
-        languageCode: "en",
-        name: "Industrial OPP Packaging Tape 48mm x 100 yards",
-        shortDescription: "High-tack 50-micron industrial carton sealing tape packed 72 rolls per export carton.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 33,
-      cartonWidthCm: 33,
-      cartonHeightCm: 30,
-      netWeightKg: 13.5,
-      grossWeightKg: 14.5,
-      pcsPerCarton: 72,
-    },
-    priceTiers: [
-      { minQuantity: 360, maxQuantity: 1439, unitPriceUsd: 0.65, discountPercentage: 23 },
-      { minQuantity: 1440, maxQuantity: null, unitPriceUsd: 0.55, discountPercentage: 35 },
-    ],
-  },
-  {
-    id: 6,
-    categoryId: 6,
-    baseSku: "PE-FILM-50-17",
-    hsCode: "3920.10.10",
-    countryOfOrigin: "VNM",
-    defaultRetailPriceUsd: 3.2,
-    isActive: true,
-    specificationsJson: JSON.stringify({
-      vi: {
-        "Khổ rộng màng": "500 mm (50 cm)",
-        "Độ dày màng": "17 micron",
-        "Trọng lượng cuộn": "2.8 kg (Màng 2.5kg + Lõi 0.3kg)",
-        "Độ giãn dài": "300% - 350%",
-        "Khả năng chịu kéo đứt": "Chống đâm thủng góc cạnh pallet hàng hóa",
-      },
-      en: {
-        "Film Width": "500 mm (50 cm)",
-        "Film Thickness": "17 microns",
-        "Roll Gross Weight": "2.8 kg (Film 2.5kg + Core 0.3kg)",
-        "Elongation Rate": "300% - 350%",
-        "Puncture Resistance": "Heavy-duty anti-puncture for palletized containers",
-      },
-    }),
-    translations: [
-      {
-        languageCode: "vi",
-        name: "Màng PE quấn pallet tay 50cm độ dày 17 mic (Cuộn 2.8kg)",
-        shortDescription: "Màng chít bọc hàng độ dai cao, chống bụi bẩn chống ẩm bảo vệ kiện hàng xuất khẩu.",
-      },
-      {
-        languageCode: "en",
-        name: "Manual Pallet Stretch Film 50cm 17 Mic (2.8kg Roll)",
-        shortDescription: "High-tensile stretch film providing moisture, dust, and puncture protection for container cargo.",
-      },
-    ],
-    exportPackaging: {
-      cartonLengthCm: 35,
-      cartonWidthCm: 25,
-      cartonHeightCm: 52,
-      netWeightKg: 15.0,
-      grossWeightKg: 16.8,
-      pcsPerCarton: 6,
-    },
-    priceTiers: [
-      { minQuantity: 120, maxQuantity: 479, unitPriceUsd: 2.6, discountPercentage: 18 },
-      { minQuantity: 480, maxQuantity: null, unitPriceUsd: 2.25, discountPercentage: 30 },
-    ],
-  },
-];
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = Number(params?.id || 1);
 
-  const fallbackProduct = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
-  const [product, setProduct] = useState<Product>(fallbackProduct);
+  const [product, setProduct] = useState<import("@/types").Product | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const [productLoadError, setProductLoadError] = useState(false);
   const [viewMode, setViewMode] = useState<"B2C" | "B2B">("B2C");
   const [quantity, setQuantity] = useState<number>(1);
   const [addedToast, setAddedToast] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [logisticsToolTab, setLogisticsToolTab] = useState<"landed_cost" | "container_3d">("landed_cost");
 
   const { formatPrice } = useCurrency();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const { addItem } = useCart();
+  const { imageUrl } = useProductImage(product || { id: productId, baseSku: "", imageUrl: undefined });
   const isVi = language === "vi";
+  const isAdmin = user?.role === "SUPER_ADMIN" && !user.isDemo;
+  const isB2c = user?.role === "B2C_CUSTOMER";
 
   useEffect(() => {
-    const cached = catalogApi.getCachedProductById ? catalogApi.getCachedProductById(productId) : null;
-    if (cached) {
-      setProduct(cached);
-    } else {
-      const currentFallback = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
-      setProduct(currentFallback);
+    if (isB2c && viewMode !== "B2C") {
+      setViewMode("B2C");
     }
+  }, [isB2c, viewMode]);
 
-    catalogApi
-      .getProductById(productId)
-      .then((res) => {
-        if (res && res.translations) setProduct(res);
-      })
-      .catch(() => {});
-  }, [productId]);
+  useEffect(() => {
+    let active = true;
+    setIsLoadingProduct(true);
+    setProductLoadError(false);
+    catalogApi.getProductById(productId, language).then((result) => {
+      if (!active) return;
+      setProduct(result);
+      setProductLoadError(!result);
+    }).catch(() => {
+      if (active) setProductLoadError(true);
+    }).finally(() => { if (active) setIsLoadingProduct(false); });
+    return () => { active = false; };
+  }, [productId, language]);
 
-  const currentTrans =
-    product.translations?.find((tr) => tr.languageCode === language) ||
-    product.translations?.find((tr) => tr.languageCode === "vi") ||
-    (product.translations && product.translations[0]);
+  if (!product) {
+    return <main className="mx-auto max-w-3xl px-4 py-24 text-center">{isLoadingProduct ? <p className="text-slate-500">{isVi ? "Đang tải sản phẩm..." : "Loading product..."}</p> : <div className="space-y-4"><h1 className="text-2xl font-bold">{productLoadError ? (isVi ? "Không thể tải sản phẩm." : "Could not load this product.") : (isVi ? "Không tìm thấy sản phẩm." : "Product not found.")}</h1><Link href="/" className="inline-flex rounded bg-[#0E4B94] px-4 py-2 text-white">{isVi ? "Về trang chủ" : "Back to home"}</Link></div>}</main>;
+  }
 
-  const name = currentTrans?.name || product.name || product.baseSku;
-  const desc = currentTrans?.shortDescription || product.shortDescription || "";
+  const currentTrans = getTranslation(product?.translations, language);
+
+  const name = currentTrans?.name || product.baseSku;
+  const desc = currentTrans?.shortDescription || "";
 
   let specsObj: Record<string, string> = {};
   try {
@@ -401,6 +120,7 @@ export default function ProductDetailPage() {
   const totalGrossWeight = totalCartons * (product.exportPackaging?.grossWeightKg || 10);
 
   const handleAddToCart = () => {
+    addItem(product, quantity, true);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 3000);
   };
@@ -432,41 +152,74 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Col: Visual Preview & Badges */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="border border-neutral-300 bg-white p-8 relative flex flex-col items-center justify-center min-h-[380px] shadow-sm rounded">
-            <div className="absolute top-4 left-4 flex gap-2">
-              <span className="bg-black text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded">
-                HS {product.hsCode}
-              </span>
-              <span className="bg-[#0E4B94] text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded">
-                {t("home.origin")} {product.countryOfOrigin}
-              </span>
-            </div>
+          <div className="border border-neutral-300 bg-white overflow-hidden relative flex flex-col justify-between shadow-sm rounded">
+            <div className="relative aspect-[4/3] w-full bg-neutral-100 overflow-hidden">
+              <img
+                src={imageUrl}
+                alt={name}
+                onError={(e) => {
+                  const fallback = getDefaultProductImageUrl(product);
+                  if (e.currentTarget.src !== fallback) {
+                    e.currentTarget.src = fallback;
+                  }
+                }}
+                className="w-full h-full object-cover"
+              />
 
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={() => alert(isVi ? "Đã sao chép liên kết sản phẩm!" : "Product link copied to clipboard!")}
-                className="p-1.5 text-neutral-400 hover:text-black border border-neutral-200 rounded"
-                title={isVi ? "Chia sẻ" : "Share"}
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="text-center my-auto py-10">
-              <div className="w-40 h-40 mx-auto rounded-full bg-neutral-100 border-2 border-neutral-200 flex items-center justify-center text-neutral-400 font-mono text-xs shadow-inner">
-                <Box className="w-16 h-16 text-[#0E4B94]" />
+              <div className="absolute top-3 left-3 flex gap-2">
+                <span className="bg-black/85 backdrop-blur-sm text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded shadow-sm">
+                  HS {product.hsCode}
+                </span>
+                <span className="bg-[#0E4B94] text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded shadow-sm">
+                  {t("home.origin")} {product.countryOfOrigin}
+                </span>
               </div>
-              <p className="mt-4 font-mono text-xs text-neutral-500">
-                SKU: <strong className="text-black">{product.baseSku}</strong>
-              </p>
+
+              <div className="absolute top-3 right-3">
+                <button
+                  onClick={() => alert(isVi ? "Đã sao chép liên kết sản phẩm!" : "Product link copied to clipboard!")}
+                  className="p-1.5 bg-white/90 text-neutral-700 hover:text-black border border-neutral-300 rounded shadow-sm"
+                  title={isVi ? "Chia sẻ" : "Share"}
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(true)}
+                  className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 bg-[#0E4B94] hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded shadow-lg border border-white/80 transition-all"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>
+                    {isVi
+                      ? "Đổi ảnh từ thiết bị (Admin)"
+                      : "Change Image from Device (Admin)"}
+                  </span>
+                </button>
+              )}
             </div>
 
-            <div className="w-full border-t border-neutral-200 pt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono text-neutral-600">
-              <div className="border-r border-neutral-200">ISO 9001:2015</div>
-              <div className="border-r border-neutral-200">CE & FDA Pass</div>
-              <div>{isVi ? "Cảng Cát Lái" : "Cat Lai Port"}</div>
+            <div className="p-3 bg-white border-t border-neutral-200 flex items-center justify-between text-xs font-mono text-neutral-600">
+              <span>
+                SKU: <strong className="text-black">{product.baseSku}</strong>
+              </span>
+              <div className="flex items-center gap-2 text-[10px]">
+                <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-200 rounded">ISO 9001:2015</span>
+                <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-200 rounded">CE & FDA Pass</span>
+                <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-200 rounded">{isVi ? "Cảng Cát Lái" : "Cat Lai Port"}</span>
+              </div>
             </div>
           </div>
+
+          {isAdmin && editModalOpen && (
+            <ProductImageEditModal
+              product={product}
+              isOpen={editModalOpen}
+              onClose={() => setEditModalOpen(false)}
+            />
+          )}
 
           <div className="border border-neutral-200 bg-neutral-50 p-4 space-y-2 text-xs rounded">
             <div className="flex items-center gap-2 text-neutral-800">
@@ -505,35 +258,37 @@ export default function ProductDetailPage() {
             <p className="mt-2 text-sm text-neutral-600 leading-relaxed">{desc}</p>
           </div>
 
-          {/* DUAL-MODE TOGGLE SWITCH */}
-          <div className="border-2 border-neutral-900 p-1.5 bg-neutral-100 flex rounded">
-            <button
-              onClick={() => {
-                setViewMode("B2C");
-                if (quantity > 100) setQuantity(1);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
-                viewMode === "B2C"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-neutral-500 hover:text-black"
-              }`}
-            >
-              {t("pdp.viewModeB2c")}
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("B2B");
-                if (quantity < 120) setQuantity(product.priceTiers[0]?.minQuantity || 120);
-              }}
-              className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
-                viewMode === "B2B"
-                  ? "bg-[#0E4B94] text-white shadow-sm"
-                  : "text-neutral-500 hover:text-black"
-              }`}
-            >
-              {t("pdp.viewModeB2b")}
-            </button>
-          </div>
+          {/* DUAL-MODE TOGGLE SWITCH (Hidden for B2C retail accounts) */}
+          {!isB2c && (
+            <div className="border-2 border-neutral-900 p-1.5 bg-neutral-100 flex rounded">
+              <button
+                onClick={() => {
+                  setViewMode("B2C");
+                  if (quantity > 100) setQuantity(1);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
+                  viewMode === "B2C"
+                    ? "bg-white text-black shadow-sm"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                {t("pdp.viewModeB2c")}
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("B2B");
+                  if (quantity < 120) setQuantity(product.priceTiers[0]?.minQuantity || 120);
+                }}
+                className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all rounded ${
+                  viewMode === "B2B"
+                    ? "bg-[#0E4B94] text-white shadow-sm"
+                    : "text-neutral-500 hover:text-black"
+                }`}
+              >
+                {t("pdp.viewModeB2b")}
+              </button>
+            </div>
+          )}
 
           {/* Price Banner */}
           <div className="border border-neutral-300 p-4 bg-white flex flex-col sm:flex-row justify-between sm:items-center gap-3 rounded">
@@ -768,6 +523,120 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Phase 2: Interactive B2B Logistics Suite (Landed Cost FTA & 3D Container Load Planner) - Hidden for B2C */}
+      {!isB2c && (
+        <div className="space-y-4 mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black pb-3">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#0E4B94] font-bold">
+                {isVi
+                  ? "BỘ CÔNG CỤ LOGISTICS & THUẾ QUAN NGOẠI THƯƠNG (PHASE 2)"
+                  : "B2B EXPORT LOGISTICS & FTA TARIFF INTELLIGENCE SUITE"}
+              </span>
+              <h2 className="text-xl font-black uppercase tracking-tight text-black mt-0.5">
+                {isVi
+                  ? "Mô phỏng Giá vốn Nhập khẩu (Landed Cost) & Đóng hàng Container 3D"
+                  : "Landed Cost Simulator & 3D WebGL Container Load Planner"}
+              </h2>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Quick Lot Size Presets for B2B Simulation */}
+              <div className="flex items-center gap-1 text-[11px] font-mono bg-neutral-100 border border-neutral-300 px-2 py-1 rounded">
+                <span className="text-neutral-500">{isVi ? "Lô mô phỏng:" : "Lot Size:"}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    setQuantity(product.priceTiers?.[0]?.minQuantity || 500);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  MOQ ({product.priceTiers?.[0]?.minQuantity || 500})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    const qty20gp = Math.max(500, Math.floor(28 / singleCartonCbm) * pcsPerCarton);
+                    setQuantity(qty20gp);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  Full 20GP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("B2B");
+                    const qty40hc = Math.max(1000, Math.floor(65 / singleCartonCbm) * pcsPerCarton);
+                    setQuantity(qty40hc);
+                  }}
+                  className="px-2 py-0.5 bg-white border border-neutral-300 hover:border-black font-bold rounded"
+                >
+                  Full 40HC
+                </button>
+              </div>
+
+              {/* Tool Switcher Tabs */}
+              <div className="flex border border-black bg-white rounded overflow-hidden text-xs font-mono font-bold">
+                <button
+                  type="button"
+                  onClick={() => setLogisticsToolTab("landed_cost")}
+                  className={`px-3.5 py-2 flex items-center gap-1.5 uppercase transition-colors ${
+                    logisticsToolTab === "landed_cost"
+                      ? "bg-[#0E4B94] text-white"
+                      : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>{isVi ? "Tính Giá Vốn & Thuế FTA" : "Landed Cost & FTA Duty"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogisticsToolTab("container_3d")}
+                  className={`px-3.5 py-2 flex items-center gap-1.5 uppercase border-l border-black transition-colors ${
+                    logisticsToolTab === "container_3d"
+                      ? "bg-[#0E4B94] text-white"
+                      : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5" />
+                  <span>{isVi ? "Mô phỏng Cont 3D WebGL" : "3D Container Planner"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {logisticsToolTab === "landed_cost" ? (
+            <LandedCostCalculator
+              productId={product.id}
+              sku={product.baseSku}
+              hsCode={product.hsCode}
+              productName={name}
+              quantity={Math.max(quantity, viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120)}
+              unitPriceUsd={
+                viewMode === "B2B"
+                  ? effectiveUnitPrice
+                  : product.priceTiers?.[0]?.unitPriceUsd || product.defaultRetailPriceUsd
+              }
+            />
+          ) : (
+            <CbmVisualizer
+              items={[
+                {
+                  productId: product.id,
+                  quantity: Math.max(
+                    quantity,
+                    viewMode === "B2B" ? quantity : product.priceTiers?.[0]?.minQuantity || 120
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

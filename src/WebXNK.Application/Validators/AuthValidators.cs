@@ -3,17 +3,28 @@ using WebXNK.Application.DTOs;
 
 namespace WebXNK.Application.Validators;
 
+public static class ValidationPatterns
+{
+    public const string Email = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
+    public const string VietnamPhone = @"^(0[3|5|7|8|9])+([0-9]{8})$";
+    public const string StrongPassword = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$";
+}
+
 public class RegisterB2cValidator : AbstractValidator<RegisterB2cRequestDto>
 {
     public RegisterB2cValidator()
     {
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email không được để trống.")
-            .EmailAddress().WithMessage("Định dạng email không hợp lệ.");
+            .Matches(ValidationPatterns.Email).WithMessage("Định dạng email không hợp lệ.");
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Mật khẩu không được để trống.")
-            .MinimumLength(6).WithMessage("Mật khẩu phải có ít nhất 6 ký tự.");
+            .Matches(ValidationPatterns.StrongPassword).WithMessage("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+
+        RuleFor(x => x.PhoneNumber)
+            .NotEmpty().WithMessage("Số điện thoại không được để trống.")
+            .Matches(ValidationPatterns.VietnamPhone).WithMessage("Số điện thoại Việt Nam không hợp lệ.");
 
         RuleFor(x => x.FullName)
             .NotEmpty().WithMessage("Họ và tên không được để trống.")
@@ -27,11 +38,15 @@ public class RegisterB2bValidator : AbstractValidator<RegisterB2bRequestDto>
     {
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email doanh nghiệp không được để trống.")
-            .EmailAddress().WithMessage("Định dạng email không hợp lệ.");
+            .Matches(ValidationPatterns.Email).WithMessage("Định dạng email không hợp lệ.");
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Mật khẩu không được để trống.")
-            .MinimumLength(6).WithMessage("Mật khẩu phải có ít nhất 6 ký tự.");
+            .Matches(ValidationPatterns.StrongPassword).WithMessage("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+
+        RuleFor(x => x.PhoneNumber)
+            .NotEmpty().WithMessage("Số điện thoại không được để trống.")
+            .Matches(ValidationPatterns.VietnamPhone).WithMessage("Số điện thoại Việt Nam không hợp lệ.");
 
         RuleFor(x => x.FullName)
             .NotEmpty().WithMessage("Họ tên người đại diện không được để trống.");
@@ -56,7 +71,7 @@ public class LoginValidator : AbstractValidator<LoginRequestDto>
     {
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email không được để trống.")
-            .EmailAddress().WithMessage("Định dạng email không hợp lệ.");
+            .Matches(ValidationPatterns.Email).WithMessage("Định dạng email không hợp lệ.");
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Mật khẩu không được để trống.");

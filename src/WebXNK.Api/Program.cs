@@ -10,6 +10,12 @@ using WebXNK.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Keep development and command-line diagnostics in the console. The Windows
+// Event Log provider can fail when the process does not have permission to
+// write to the .NET Runtime event source, masking the original startup error.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 // 1. Đăng ký Application & Infrastructure Services theo Clean Architecture
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -153,6 +159,7 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowNextJsClient");
+app.UseStaticFiles();
 app.UseResponseCaching();
 
 if (!app.Environment.IsDevelopment())

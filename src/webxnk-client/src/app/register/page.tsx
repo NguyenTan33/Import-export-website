@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, User, Building2, Phone, ArrowRight, ArrowLeft, ShieldCheck, Globe } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { validateRegistration } from "@/utils/validation";
 
 export default function RegisterPage() {
   const [accountType, setAccountType] = useState<"b2c" | "b2b">("b2b");
@@ -18,19 +19,35 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // B2B Company states
   const [companyName, setCompanyName] = useState("");
   const [taxId, setTaxId] = useState("");
-  const [country, setCountry] = useState("Japan");
+  const [country, setCountry] = useState("JPN");
   const [companyAddress, setCompanyAddress] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
 
+  const registrationError = () => validateRegistration({ fullName, email, phone, password, confirmPassword });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationError = registrationError();
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+    setFormError("");
+    setIsSubmitting(true);
     if (accountType === "b2b") {
-      if (!companyName || !taxId || !email) return;
-      await registerB2b({
+      if (!companyName || !taxId || !/^[A-Za-z]{3}$/.test(country)) {
+        setFormError("Vui lòng nhập đầy đủ thông tin doanh nghiệp.");
+        setIsSubmitting(false);
+        return;
+      }
+      const success = await registerB2b({
         companyName,
         taxId,
         country,
@@ -40,10 +57,20 @@ export default function RegisterPage() {
         email,
         phone,
         password,
+        confirmPassword,
       });
+      if (!success) {
+        setFormError("Đăng ký thất bại. Email hoặc mã số thuế có thể đã tồn tại, hoặc API chưa sẵn sàng.");
+        setIsSubmitting(false);
+        return;
+      }
     } else {
-      if (!fullName || !email) return;
-      await registerB2c({ fullName, email, phone, password });
+      const success = await registerB2c({ fullName, email, phone, password, confirmPassword });
+      if (!success) {
+        setFormError("Đăng ký thất bại. Email có thể đã được sử dụng hoặc API chưa sẵn sàng.");
+        setIsSubmitting(false);
+        return;
+      }
     }
     router.push("/");
   };
@@ -148,7 +175,8 @@ export default function RegisterPage() {
                     required
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    placeholder="Japan / USA / Germany"
+                    maxLength={3}
+                    placeholder="JPN / USA / DEU"
                     className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                   />
                 </div>
@@ -210,9 +238,11 @@ export default function RegisterPage() {
                 <Phone className="w-4 h-4 absolute left-3 top-2.5 text-neutral-400" />
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+81 3 5555 0192"
+                  maxLength={10}
+                  placeholder="0912345678"
                   className="w-full border border-neutral-300 pl-10 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                 />
               </div>
@@ -248,17 +278,33 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="new-password"
                   className="w-full border border-neutral-300 pl-10 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
                 />
               </div>
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-mono font-bold text-neutral-700 mb-1">Nhập lại mật khẩu *</label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              className="w-full border border-neutral-300 px-3 py-2 text-xs font-mono focus:outline-none focus:border-black"
+            />
+          </div>
+
+          {formError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 p-3">{formError}</p>}
+
           <button
             type="submit"
+            disabled={isSubmitting}
             className="w-full flex items-center justify-center gap-2 bg-[#0E4B94] hover:bg-[#0a376d] text-white py-2.5 text-xs font-bold font-mono uppercase tracking-wider transition-colors shadow-sm"
           >
-            <span>{t("auth.registerBtn")}</span>
+            <span>{isSubmitting ? "Đang xử lý..." : t("auth.registerBtn")}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
